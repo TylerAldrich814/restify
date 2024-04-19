@@ -1,34 +1,42 @@
-use apie_macro::api_endpoint;
+use apie_macro::rest;
 
-// api_endpoint! {
-// 	MyEndpointStruct,
-// 	GET "/api/data/{id}" => {
-// 		request: {
-// 			id: i32,
-// 		}
-// 		response: {
-// 			data: String,
-// 		}
-// 	}
-// }
-// fn main() {
-// 	let _endpoint = MyEndpointStruct::new();
-// }
 
-api_endpoint!{
-	MyEndpoint,
-	GET "/api/data/{id}" => {
-		request: {
-			id: i32,
+rest!{
+	[MyEndpoint: {
+		GET "/api/user/{id}" => {
+			query: {
+				id: i32,
+			}
+			response: {
+				user: String,
+			}
 		}
-		response: {
-			data: String,
+		POST "/api/post/new" => {
+			header: {
+				auth: String
+			}
+			request: {
+				author: String,
+				title: String,
+				data: String,
+			}
 		}
-	}
+	}],
+	[MyOtherEndpoint: {
+		GET "/v1/account/{id}" => {
+			header: {
+				auth: String,
+			}
+			query: {
+				id: u64,
+			}
+			response: {
+				username: String,
+			}
+		}
+	}]
 }
 
-fn main() {
-	let endpoint = MyEndpoint::new();
-	println!("URI: {}", endpoint.get_uri());
-	
+
+fn main(){
 }
