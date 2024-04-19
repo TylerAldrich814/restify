@@ -8,12 +8,26 @@ mod my_ep {
 	
 	}
 }
+// rest! {
+// 	[MyEndpoint: {
+// 		GET "/api/user/{id}" => {
+// 		["camelCase"]
+// 			query: {
+// 				id: i32,
+// 				name: ?String?,
+// 				email: ?String,
+// 			}
+// 		}
+// 	}]
+// }
 
 rest!{
 	[MyEndpoint: {
 		GET "/api/user/{id}" => {
+			["camelCase"]
 			query: {
 				id: i32,
+				name: String
 			}
 			response: {
 				user: String,

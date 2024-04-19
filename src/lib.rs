@@ -17,32 +17,11 @@ static VALID_REST_COMPONENT: &[&str] = &["header", "request", "response", "query
 
 type StructBlock = Punctuated<Field, Token![,]>;
 
-impl Debug for EndpointMethod {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "method: \"{}\"\n", self.method.to_string())?;
-		write!(f, "uri:    {}\n", self.uri.token().to_string())?;
-		for (name, field) in self.structs.iter(){
-			let name = name.to_string().split(",").fold(String::new(), |n, c| {
-				format!("{n}{c},\n")
-			});
-			
-			let field = quote!( #field ).to_string();
-			write!(f, "{}\t{}\n", name, field)?;
-		}
-		
-		write!(f, "")
-	}
+struct Struct {
+	rename_all: Option<LitStr>,
+	name: Ident,
+	block: StructBlock,
 }
-
-// impl Debug for StructBlock {
-// 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-// 		for field in self.fields.iter() {
-// 			let field_str = quote!( #field ).to_string();
-// 			write!(f, "{},\n", field_str)?;
-// 		}
-// 		write!(f, "")
-// 	}
-// }
 
 /// # Level 2 Rest Macro Parser
 /// Represents each REST Method, and their REST component struct definitions
@@ -67,7 +46,36 @@ impl Debug for EndpointMethod {
 struct EndpointMethod {
 	method: Ident,
 	uri: LitStr,
-	structs: Vec<(Ident, StructBlock)>,
+	// structs: Vec<(Ident, StructBlock)>,
+	structs: Vec<Struct>
+}
+impl Debug for EndpointMethod {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "method: \"{}\"\n", self.method.to_string())?;
+		write!(f, "uri:    {}\n", self.uri.token().to_string())?;
+		for s in self.structs.iter(){
+			let name = s.name.to_string().split(",").fold(String::new(), |n, c| {
+				format!("{n}{c},\n")
+			});
+			let block = &s.block;
+			let ra = &s.rename_all.clone();
+			let rename = if ra.is_some() {
+				format!("[{}]", ra.as_ref().unwrap().token().to_string())
+			} else { "".into() };
+			
+			let field = quote!( #block ).to_string();
+			write!(
+				f,
+				"{}{}\t{}\n",
+				rename,
+				name,
+				field
+				
+			)?;
+		}
+		
+		write!(f, "")
+	}
 }
 
 /// # Level 1 Rest Macro Parser
@@ -125,13 +133,42 @@ struct RestEndpoints {
 	endpoints: Vec<Endpoint>
 }
 
-
-// impl Parse for StructBlock {
-// 	fn parse(input: ParseStream) -> Result<Self> {
-// 		let fields = input.parse_terminated(Field::parse_named, Token![,])?;
-// 		Ok(StructBlock { fields })
-// 	}
+// struct Struct {
+// 	rename_all: Option<LitStr>,
+// 	name: Ident,
+// 	block: StructBlock,
 // }
+impl Parse for Struct {
+	fn parse(input: ParseStream) -> Result<Self> {
+		let lookahead = input.lookahead1();
+		let rename_all = if lookahead.peek(syn::token::Bracket){
+			let serde;
+			bracketed!(serde in input);
+			Some(serde.parse::<LitStr>()?)
+		}else { None };
+		
+		let name: Ident = input.parse()?;
+		if !VALID_REST_COMPONENT.contains(&name.to_string().as_str()) {
+			return Err(syn::Error::new(name.span(), "Invalid REST Component Name"));
+		}
+		
+		input.parse::<Token![:]>()?;
+		
+		let content;
+		braced!(content in input);
+		let block: StructBlock = content.parse_terminated(
+			Field::parse_named,
+			Token![,]
+		)?;
+		
+		Ok(Struct{ rename_all, name, block})
+	}
+}
+fn extract_serde(input: ParseStream) -> Result<LitStr> {
+	let content;
+	bracketed!(content in input);
+	content.parse::<LitStr>()
+}
 
 impl Parse for EndpointMethod {
 	fn parse(input: ParseStream) -> Result<Self> {
@@ -145,20 +182,9 @@ impl Parse for EndpointMethod {
 		let content;
 		braced!(content in input);
 		
-		let mut structs: Vec<(Ident, StructBlock)> = Vec::new();
-		
-		while !content.is_empty() {
-			let name: Ident = content.parse()?;
-			if !VALID_REST_COMPONENT.contains(&name.to_string().as_str()) {
-				return Err(syn::Error::new(name.span(), "Invalid REST Component Name"));
-			}
-			
-			content.parse::<Token![:]>()?;
-			
-			let block_content;
-			braced!(block_content in content);
-			let struct_block: StructBlock = block_content.parse_terminated(Field::parse_named, Token![,])?;
-			structs.push((name, struct_block));
+		let mut structs: Vec<Struct> = Vec::new();
+		while !content.is_empty(){
+			structs.push(content.parse()?);
 		}
 		
 		Ok(EndpointMethod { method, uri, structs })
@@ -307,19 +333,27 @@ pub fn rest(input: TokenStream) -> TokenStream {
 		endpoints
 	} = parse_macro_input!(input as RestEndpoints);
 	
+	println!("{:#?}", endpoints);
+	
 	let generated: Vec<TokenStream2> = endpoints.iter().map(|endpoint| {
 		let vis = &endpoint.vis;
 		let endpoint_name = &endpoint.name;
 		let methods: Vec<TokenStream> = endpoint.methods.iter().map(|method| {
 			let method_name = &method.method;
 			let uri = &method.uri;
-			let structs: Vec<TokenStream2> = method.structs.iter().map(|(ident, block)| {
+			let structs: Vec<TokenStream2> = method.structs.iter().map(|st| {
+				let Struct {
+					rename_all,
+					name,
+					block
+				} = st;
+				
 				let struct_name = create_struct_name(&[
 					method_name.to_string().as_str(),
-					ident.to_string().as_str()
+					name.to_string().as_str()
 				]);
 				
-				gen_component_struct(vis, ident, &struct_name, block)
+				gen_component_struct(vis, name, &struct_name, block)
 			}).collect();
 			
 			let output = quote!{
