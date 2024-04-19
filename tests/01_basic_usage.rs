@@ -1,5 +1,13 @@
 use apie_macro::rest;
 
+mod my_ep {
+	struct MyEpQuery {
+		id: i32
+	}
+	struct MyEpResponse {
+	
+	}
+}
 
 rest!{
 	[MyEndpoint: {
