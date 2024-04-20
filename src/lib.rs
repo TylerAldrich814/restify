@@ -5,8 +5,9 @@ extern crate proc_macro2;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use proc_macro::TokenStream;
 use std::fmt::{Debug, Formatter};
+use std::io::Write;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, LitStr, Ident, Token, Result, braced, Field, Visibility, bracketed};
+use syn::{parse_macro_input, LitStr, Ident, Token, Result, braced, Field, Visibility, bracketed, Type, token};
 use syn::parse::{Lookahead1, Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::token::Token;
@@ -14,13 +15,55 @@ use syn::token::Token;
 static VALID_METHODS: &[&str] = &["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
 static VALID_REST_COMPONENT: &[&str] = &["header", "request", "response", "query"];
 
-
 type StructBlock = Punctuated<Field, Token![,]>;
+
+struct StructParameter {
+	rename: Option<LitStr>,
+	name: Ident,
+	kind: Type,
+	optional: bool,
+	comma: bool,
+}
+impl StructParameter {
+	fn quote(&self) -> TokenStream2 {
+		let name = &self.name;
+		let kind = &self.kind;
+		let type_tokens = if self.optional {
+			if self.comma {
+				quote!{ Option<#kind>, }
+			} else {
+				quote!{ Option<#kind> }
+			}
+		} else {
+			if self.comma{
+				quote! { #kind, }
+			} else {
+				quote! { #kind }
+			}
+		};
+		let rename = &self.rename;
+		let output = match rename {
+			Some(serde) => {
+				quote!{
+					#[serde(rename=#serde)]
+					#name: #type_tokens
+				}
+			}
+			None => quote!{ #name: #type_tokens }
+		};
+		output.into()
+	}
+}
+impl Debug for StructParameter {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.quote().to_string())
+	}
+}
 
 struct Struct {
 	rename_all: Option<LitStr>,
 	name: Ident,
-	block: StructBlock,
+	parameters: Vec<StructParameter>,
 }
 
 /// # Level 2 Rest Macro Parser
@@ -46,31 +89,28 @@ struct Struct {
 struct EndpointMethod {
 	method: Ident,
 	uri: LitStr,
-	// structs: Vec<(Ident, StructBlock)>,
 	structs: Vec<Struct>
 }
 impl Debug for EndpointMethod {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "method: \"{}\"\n", self.method.to_string())?;
+		write!(f, "method: {}\n", self.method.to_string())?;
 		write!(f, "uri:    {}\n", self.uri.token().to_string())?;
 		for s in self.structs.iter(){
 			let name = s.name.to_string().split(",").fold(String::new(), |n, c| {
 				format!("{n}{c},\n")
 			});
-			let block = &s.block;
+			let parameters = &s.parameters;
 			let ra = &s.rename_all.clone();
 			let rename = if ra.is_some() {
-				format!("[{}]", ra.as_ref().unwrap().token().to_string())
+				format!("#[serde(rename={})]\n", ra.as_ref().unwrap().token().to_string())
 			} else { "".into() };
 			
-			let field = quote!( #block ).to_string();
 			write!(
 				f,
-				"{}{}\t{}\n",
+				"{}{}\t{:#?}\n",
 				rename,
 				name,
-				field
-				
+				parameters
 			)?;
 		}
 		
@@ -133,11 +173,36 @@ struct RestEndpoints {
 	endpoints: Vec<Endpoint>
 }
 
-// struct Struct {
-// 	rename_all: Option<LitStr>,
-// 	name: Ident,
-// 	block: StructBlock,
-// }
+impl Parse for StructParameter {
+	fn parse(input: ParseStream) -> Result<Self> {
+		//TODO: Parse struct Parameters
+		let mut lookahead = input.lookahead1();
+		let rename: Option<LitStr> = if lookahead.peek(syn::token::Bracket) {
+			let content;
+			bracketed!(content in input);
+			Some(content.parse()?)
+		} else { None };
+		
+		let name: Ident = input.parse()?;
+		
+		input.parse::<Token![:]>()?;
+		
+		lookahead = input.lookahead1();
+		let optional = lookahead.peek(Token![?]);
+		if optional{ input.parse::<Token![?]>()?; }
+		
+		let kind: Type = input.parse()?;
+		
+		lookahead = input.lookahead1();
+		let comma = lookahead.peek(Token![,]);
+		if comma {
+			input.parse::<Token![,]>()?;
+		}
+		
+		Ok(StructParameter{ rename, name, kind, optional, comma })
+	}
+}
+
 impl Parse for Struct {
 	fn parse(input: ParseStream) -> Result<Self> {
 		let lookahead = input.lookahead1();
@@ -154,14 +219,15 @@ impl Parse for Struct {
 		
 		input.parse::<Token![:]>()?;
 		
+		let mut parameters: Vec<StructParameter> = Vec::new();
+		
 		let content;
 		braced!(content in input);
-		let block: StructBlock = content.parse_terminated(
-			Field::parse_named,
-			Token![,]
-		)?;
+		while !content.is_empty() {
+			parameters.push(content.parse()?);
+		}
 		
-		Ok(Struct{ rename_all, name, block})
+		Ok(Struct{ rename_all, name, parameters })
 	}
 }
 fn extract_serde(input: ParseStream) -> Result<LitStr> {
@@ -244,10 +310,12 @@ impl Parse for RestEndpoints {
 
 fn gen_header(
 	vis: &Visibility,
+	rename_all: TokenStream2,
 	name: &Ident,
 	fields: &[TokenStream2]
 ) -> TokenStream2 {
 	let output = quote! {
+		#rename_all
 		#[derive(Debug, Clone, serde::Serialize)]
 		#vis struct #name {
 			#( #fields )*
@@ -261,10 +329,12 @@ fn gen_header(
 }
 fn gen_request(
 	vis: &Visibility,
+	rename_all: TokenStream2,
 	name: &Ident,
 	fields: &[TokenStream2]
 ) -> TokenStream2 {
 	let output = quote! {
+		#rename_all
 		#[derive(Debug, Clone, serde::Serialize)]
 		#vis struct #name {
 			#( #fields )*
@@ -278,10 +348,12 @@ fn gen_request(
 }
 fn gen_response(
 	vis: &Visibility,
+	rename_all: TokenStream2,
 	name: &Ident,
 	fields: &[TokenStream2]
 ) -> TokenStream2 {
 	let output = quote! {
+		#rename_all
 		#[derive(Debug, Clone, serde::Deserialize)]
 		#vis struct #name {
 			#( #fields )*
@@ -295,10 +367,12 @@ fn gen_response(
 }
 fn gen_query(
 	vis: &Visibility,
+	rename_all: TokenStream2,
 	name: &Ident,
 	fields: &[TokenStream2]
 ) -> TokenStream2 {
 	let output = quote! {
+		#rename_all
 		#[derive(Debug, Clone, serde::Serialize)]
 		#vis struct #name {
 			#( #fields )*
@@ -312,17 +386,24 @@ fn gen_query(
 
 fn gen_component_struct(
 	vis: &Visibility,
+	rename_all: &Option<LitStr>,
 	ident: &Ident,
 	struct_name: &str,
-	block: &StructBlock,
+	block: &[StructParameter],
 ) -> TokenStream2 {
 	let name = Ident::new(struct_name, Span::call_site());
-	let fields: Vec<_> = block.iter().map(|f| quote!{ #f }).collect();
+	
+	let fields: Vec<_> = block.iter().map(|f| f.quote()).collect();
+	let rename = match rename_all {
+		Some(name) => quote!{#[serde(rename_all=#name)]},
+		None => quote!{}
+	};
+	
 	match ident.to_string().as_str() {
-		"header"   => gen_header(&vis, &name, &fields),
-		"request"  => gen_request(&vis, &name, &fields),
-		"response" => gen_response(&vis, &name, &fields),
-		"query"    => gen_query(&vis, &name, &fields),
+		"header"   => gen_header(&vis, rename, &name, &fields),
+		"request"  => gen_request(&vis, rename, &name, &fields),
+		"response" => gen_response(&vis, rename, &name, &fields),
+		"query"    => gen_query(&vis, rename, &name, &fields),
 		_ => unreachable!()
 	}
 }
@@ -333,7 +414,8 @@ pub fn rest(input: TokenStream) -> TokenStream {
 		endpoints
 	} = parse_macro_input!(input as RestEndpoints);
 	
-	println!("{:#?}", endpoints);
+	// println!("{:#?}", endpoints);
+	print_n_flush(&format!("{:#?}", endpoints));
 	
 	let generated: Vec<TokenStream2> = endpoints.iter().map(|endpoint| {
 		let vis = &endpoint.vis;
@@ -345,7 +427,7 @@ pub fn rest(input: TokenStream) -> TokenStream {
 				let Struct {
 					rename_all,
 					name,
-					block
+					parameters
 				} = st;
 				
 				let struct_name = create_struct_name(&[
@@ -353,7 +435,7 @@ pub fn rest(input: TokenStream) -> TokenStream {
 					name.to_string().as_str()
 				]);
 				
-				gen_component_struct(vis, name, &struct_name, block)
+				gen_component_struct(vis, rename_all, name, &struct_name, parameters)
 			}).collect();
 			
 			let output = quote!{
@@ -370,7 +452,24 @@ pub fn rest(input: TokenStream) -> TokenStream {
 	output.into()
 }
 
+/// Not sure why.
+/// But in my Kitty Terminal with TMUX, when I attempted to print out
+/// a Parsed Tree, it wouldn't print to the terminal.
+/// But the parsed tree would print
+/// out in Jetbrains builtin Terminal Emulator.
+/// IDK, weird
+fn print_n_flush(output: &str) {
+	println!("{output}");
+	std::io::stdout().flush().unwrap();
+}
 
+/// Takes a slice of string slices.
+/// Concatenates them into a single
+/// string where the First Character of each string slice is Capitalized.
+/// And Thus following Rust's Syntax rules
+///
+/// # Example:
+/// * &["my", "struct", "name"] => "MyStructName
 fn create_struct_name(words: &[&str]) -> String {
 	let mut struct_name = String::new();
 	

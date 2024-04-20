@@ -15,4 +15,4 @@ serde = { version = "1.0.197", features = ["derive"] }
 proc-macro2 = "1.0.81"
 
 [dev-dependencies]
-trybuild = "1.0.91"
+trybuild = "1.0.9"

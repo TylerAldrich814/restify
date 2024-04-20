@@ -27,7 +27,8 @@ rest!{
 			["camelCase"]
 			query: {
 				id: i32,
-				name: String
+				["userName"]
+				user_name: ?String
 			}
 			response: {
 				user: String,
@@ -39,8 +40,8 @@ rest!{
 			}
 			request: {
 				author: String,
-				title: String,
-				data: String,
+				title: ?String,
+				data: ?String,
 			}
 		}
 	}],
@@ -61,4 +62,5 @@ rest!{
 
 
 fn main(){
+	println!("WHAT THE FUCK");
 }
