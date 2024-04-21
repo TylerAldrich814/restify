@@ -1,3 +1,6 @@
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
+
 use proc_macro2::Ident;
 use syn::{braced, bracketed, LitStr, Token, Type, Visibility};
 use syn::parse::{Lookahead1, Parse, ParseStream};
@@ -43,7 +46,7 @@ impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		//TODO: Parse struct Parameters
 		let mut lookahead = input.lookahead1();
-		let rename: Option<LitStr> = if lookahead.peek(syn::token::Bracket) {
+		let rename: Option<Ident> = if lookahead.peek(syn::token::Bracket) {
 			let content;
 			bracketed!(content in input);
 			Some(content.parse()?)
@@ -65,7 +68,7 @@ impl Parse for StructParameter {
 			input.parse::<Token![,]>()?;
 		}
 		
-		Ok(StructParameter{ rename, name, kind, optional, comma })
+		Ok(StructParameter{ rename, name, ty: kind, optional, comma })
 	}
 }
 
