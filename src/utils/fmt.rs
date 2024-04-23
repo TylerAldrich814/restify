@@ -1,5 +1,6 @@
 use std::fs;
 use std::fmt::{Debug, Display};
+use std::io::Write;
 use std::process::Command;
 use proc_macro2::TokenStream;
 
@@ -37,5 +38,6 @@ pub fn rust_fmt_quotes(title: &str, quotes: &[TokenStream]){
 		.expect("Faioled to execute rustfmt");
 	
 	let formatted_code = fs::read_to_string(&file).expect("Unable to read file");
-	println!("Formatted Code:\n{formatted_code}")
+	println!("Formatted Code:\n{formatted_code}");
+	std::io::stdout().flush().unwrap();
 }

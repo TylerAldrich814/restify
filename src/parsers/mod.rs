@@ -44,7 +44,6 @@ pub struct RestEndpoints {
 //TODO: Parser Implementations >>-------------------------------------------------------------------
 impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		//TODO: Parse struct Parameters
 		let mut lookahead = input.lookahead1();
 		let rename: Option<Ident> = if lookahead.peek(syn::token::Bracket) {
 			let content;

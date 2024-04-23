@@ -1,4 +1,5 @@
-use apie_macro::rest;
+#![allow(unused)]
+use rest_macros::rest;
 
 mod my_ep {
 	struct MyEpQuery {
@@ -50,7 +51,7 @@ mod my_ep {
 ///     * Find a better solution for the compiled Struct/Enum Documentation.
 fn todos(){}
 
-
+struct MyTest {}
 
 rest!{
 	[pub MyEndpoint: {
@@ -59,7 +60,8 @@ rest!{
 			query: {
 				id: i32,
 				[userName]
-				user_name: ?String
+				user_name: ?String,
+				test_fn: MyTest,
 			}
 			response: {
 				user: String,
@@ -76,19 +78,6 @@ rest!{
 			}
 		}
 	}]
-	// [MyOtherEndpoint: {
-	// 	GET "/v1/account/{id}" => {
-	// 		header: {
-	// 			auth: String,
-	// 		}
-	// 		query: {
-	// 			id: u64,
-	// 		}
-	// 		response: {
-	// 			username: String,
-	// 		}
-	// 	}
-	// }]
 }
 
 

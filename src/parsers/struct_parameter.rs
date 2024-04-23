@@ -20,9 +20,9 @@ impl StructParameter {
 		let kind = &self.ty;
 		let type_tokens = if self.optional {
 			if self.comma {
-				quote!{ Option<#kind>, }
+				quote!{ #kind, }
 			} else {
-				quote!{ Option<#kind> }
+				quote!{ #kind }
 			}
 		} else {
 			if self.comma{
@@ -167,7 +167,7 @@ impl<'s> StructParameterSlice<'s> {
 			} else {
 				quote! {
 					#rename
-					#vis #field_name: Option<#field_type>,
+					#vis #field_name: #field_type,
 				}
 			};
 			return output.into();
@@ -244,6 +244,54 @@ impl<'s> StructParameterSlice<'s> {
 			};
 			output.into()
 		}).collect()
+	}
+	
+	/// # Builder Functions Compiler:
+	/// Takes all StructParamters within self.slice, creates an impl builder function,
+	/// Collects and returns then in a Vec<proc_macro2::TokenStream>
+	///
+	/// ```ignore
+	/// let vis = Visibility::Inherited;
+	/// let name = &field.name;
+	/// let ty = &field.ty;
+	/// let fn_name = Ident::new(
+	///   &format!("with_{}", name.to_string())
+	///   Span::call_site(),
+	/// );
+	///
+	/// #vis fn #fn_name(mut self, #name: #ty) -> Self {
+	///   self.#name = #name;
+	///   return self;
+	/// }
+	/// ```
+	pub fn quote_builder_fn(&self) -> Vec<TokenStream2> {
+		return self.iter().map(|field| {
+			let vis = Visibility::Inherited;
+			let name = &field.name;
+			let ty = &field.ty;
+			let doc_str = DocString::create()
+				.with_doc("# {}")
+				.build();
+			let oc_str = LitStr::new(
+				&format!("{}", name),
+				Span::call_site(),
+			);
+			
+			let fn_name = Ident::new(
+				&format!("with_{}", name.to_string()),
+				Span::call_site()
+			);
+			
+			let output = quote!{
+				#[doc = ]
+				#vis fn #fn_name(mut self, #name: #ty) -> Self {
+					self.#name = #name;
+					return self;
+				}
+			};
+			
+			output.into()
+		}).collect();
 	}
 	pub fn iter(&self) -> StructParameterSlice {
 		StructParameterSlice {

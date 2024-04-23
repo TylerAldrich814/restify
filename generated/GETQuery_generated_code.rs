@@ -1,12 +1,12 @@
-#[doc = "\\\n# GETQuery\n\\\n  * [i32] id\n  * [String] user_name\n  * [MyTest] test_fn\n\"]\n"]
+#[doc = "\\\n# GETQuery\n\\\n  * [i32] id\n  * [String] user_name\n  * [:: IntellijIdeaRulezzzMyTest] test_fn\n\"]\n"]
 #[derive(Debug, Clone, PartialEq, serde :: Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GETQuery {
-    id: i32,
-    #[serde(rename = "userName")]
+    id: Option<i32>,
+    # [serde (rename = userName)]
     #[serde(skip_serializing_if = "Option::is_none")]
     user_name: Option<String>,
-    test_fn: MyTest,
+    test_fn: Option<::IntellijIdeaRulezzzMyTest>,
 }
 impl GETQuery {
     #[doc = r"TODO: Implement Query Related functions"]
@@ -21,9 +21,3 @@ impl GETQuery {
         serde_qs::to_string(&self)
     }
 }
-#[doc]
-#[derive(Debug, Clone, serde :: Deserialize)]
-pub struct GETResponse {
-    user: String,
-}
-impl GETResponse {}
