@@ -1,18 +1,22 @@
-use proc_macro2::TokenStream as TokenStream2;
+use std::process::id;
+use proc_macro2::{Literal, Span, TokenStream as TokenStream2};
 use quote::quote;
 
 use proc_macro2::Ident;
-use syn::{braced, bracketed, LitStr, Token, Type, Visibility};
-use syn::parse::{Lookahead1, Parse, ParseStream};
+use syn::{braced, bracketed, LitStr, parenthesized, Token, Type, Visibility};
+use syn::ext::IdentExt;
+use syn::parse::{Lookahead1, Parse, Parser, ParseStream};
 use crate::parsers::endpoint::Endpoint;
 use crate::parsers::struct_parameter::StructParameter;
-use crate::parsers::endpoint_method::EndpointMethod;
+use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
+use crate::parsers::rest_enum::{Enum, Enumeration, EnumParameter};
 use crate::parsers::rest_struct::Struct;
 
 pub mod endpoint;
 pub mod endpoint_method;
 pub mod rest_struct;
 pub mod struct_parameter;
+pub mod rest_enum;
 
 pub static VALID_METHODS: &[&str] = &["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
 pub static VALID_REST_COMPONENT: &[&str] = &["header", "request", "response", "reqres", "query"];
@@ -62,24 +66,79 @@ impl Parse for StructParameter {
 		let kind: Type = input.parse()?;
 		
 		lookahead = input.lookahead1();
-		let comma = lookahead.peek(Token![,]);
-		if comma {
+		if lookahead.peek(Token![,]) {
 			input.parse::<Token![,]>()?;
 		}
 		
-		Ok(StructParameter{ rename, name, ty: kind, optional, comma })
+		Ok(StructParameter{ rename, name, ty: kind, optional })
+	}
+}
+impl Parse for EnumParameter {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let mut param: syn::Result<Self> = Err(syn::Error::new(
+			Span::call_site(),
+			"Invalid Enumeration Parameter kind"
+		));
+		if input.peek(Token![,]) {
+			input.parse::<Token![,]>()?;
+			param = Ok(EnumParameter::None);
+		}
+		else if input.peek(syn::token::Paren) {
+			let content;
+			parenthesized!(content in input);
+			param = Ok(EnumParameter::Ty(content.parse::<Type>()?));
+		}
+		else if input.peek(syn::token::Brace) {
+			let mut parameters = Vec::new();
+			let mut params;
+			braced!(params in input);
+			
+			while !params.is_empty() {
+				parameters.push(params.parse()?);
+			}
+			param = Ok(EnumParameter::Struct(parameters));
+		}
+		if input.peek(Token![,]) {
+			input.parse::<Token![,]>()?;
+		}
+		
+		return param;
+	}
+}
+impl Parse for Enumeration {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let rename = if input.peek(syn::token::Bracket) {
+			let rename;
+			bracketed!(rename in input);
+			Some(rename.parse()?)
+		} else { None };
+		
+		let ident: Ident = input.parse()?;
+		let param: EnumParameter = input.parse()?;
+		
+		Ok(Enumeration{ rename, ident, param })
+	}
+}
+impl Parse for Enum {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let name: Ident = input.parse()?;
+		let colon = input.parse::<Token![:]>()?;
+		let colon = quote!{ #colon };
+		
+		let mut enums: Vec<Enumeration> = Vec::new();
+		
+		let enumerations;
+		braced!(enumerations in input);
+		while !enumerations.is_empty() {
+			enums.push(enumerations.parse()?);
+		}
+		
+		Ok(Enum{ rename_all: None, name, enums })
 	}
 }
 
 impl Parse for Struct {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let lookahead = input.lookahead1();
-		let rename_all = if lookahead.peek(syn::token::Bracket){
-			let serde;
-			bracketed!(serde in input);
-			Some(serde.parse::<LitStr>()?)
-		}else { None };
-		
 		let name: Ident = input.parse()?;
 		if !VALID_REST_COMPONENT.contains(&name.to_string().as_str()) {
 			return Err(syn::Error::new(name.span(), "Invalid REST Component Name"));
@@ -95,7 +154,37 @@ impl Parse for Struct {
 			parameters.push(content.parse()?);
 		}
 		
-		Ok(Struct{ rename_all, name, parameters })
+		Ok(Struct{ rename_all: None, name, parameters })
+	}
+}
+
+impl Parse for EndpointDataType {
+	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let mut lookahead = input.lookahead1();
+		let rename: Option<LitStr> = if lookahead.peek(syn::token::Bracket) {
+			let content;
+			bracketed!(content in input);
+			Some(content.parse()?)
+		} else { None };
+		
+		let peekable = input.lookahead1();
+		
+		return if peekable.peek(Token![struct]) {
+			let kw = input.parse::<Token![struct]>()?;
+			
+			let mut st: Struct = input.parse()?;
+			st.rename_all = rename;
+			
+			Ok(EndpointDataType::Struct(st))
+		} else if peekable.peek(Token![enum]) {
+			let kw = input.parse::<Token![enum]>()?;
+			
+			let mut en: Enum = input.parse()?;
+			en.rename_all = rename;
+			Ok(EndpointDataType::Enum(en))
+		} else {
+			Err(syn::Error::new(Span::call_site(), "Failed to find either an Enum nor a Struct"))
+		}
 	}
 }
 impl Parse for EndpointMethod {
@@ -107,15 +196,15 @@ impl Parse for EndpointMethod {
 		let uri: LitStr = input.parse()?;
 		input.parse::<Token![=>]>()?;
 		
-		let content;
-		braced!(content in input);
+		let dt_content;
+		braced!(dt_content in input);
 		
-		let mut structs: Vec<Struct> = Vec::new();
-		while !content.is_empty(){
-			structs.push(content.parse()?);
+		let mut data_types: Vec<EndpointDataType> = Vec::new();
+		while !dt_content.is_empty() {
+			data_types.push(dt_content.parse()?);
 		}
 		
-		Ok(EndpointMethod { method, uri, structs })
+		Ok(EndpointMethod { method, uri, data_types })
 	}
 }
 

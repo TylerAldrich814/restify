@@ -3,6 +3,8 @@ use proc_macro::TokenStream;
 use quote::quote;
 use serde::Serializer;
 use syn::{parse_macro_input, LitStr, Ident, Visibility};
+use crate::parsers::endpoint_method::EndpointDataType;
+use crate::parsers::rest_enum::{Enum, EnumsSlice};
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::RestEndpoints;
 use crate::parsers::struct_parameter::{StructParameterSlice};
@@ -25,7 +27,7 @@ fn gen_header(
 	
 	let output = quote! {
 		#doc
-		#[derive(Debug, Clone, serde::Serialize)]
+		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
 		#rename_all
 		#vis struct #name {
 			#( #header_fields )*
@@ -51,7 +53,7 @@ fn gen_request(
 	
 	let output = quote! {
 		#doc
-		#[derive(Debug, Clone, serde::Serialize)]
+		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
 		#rename_all
 		#vis struct #name {
 			#( #request_fields )*
@@ -77,7 +79,7 @@ fn gen_response(
 	
 	let output = quote! {
 		#[doc]
-		#[derive(Debug, Clone, serde::Deserialize)]
+		#[derive(std::fmt::Debug, Clone, serde::Deserialize)]
 		#rename_all
 		#vis struct #name {
 			#( #response_fields )*
@@ -105,7 +107,7 @@ fn gen_reqres(
 	
 	let output = quote! {
 		#[doc]
-		#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+		#[derive(std::fmt::Debug, Clone, serde::Serialize, serde::Deserialize)]
 		#rename_all
 		#vis struct #name {
 			#( #reqres_fields )*
@@ -130,7 +132,7 @@ fn gen_query(
 	
 	let output = quote!{
 		#doc
-		#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+		#[derive(std::fmt::Debug, Clone, PartialEq, serde::Serialize)]
 		#rename_all
 		#vis struct #name {
 			#( #query_fields )*
@@ -179,6 +181,27 @@ fn gen_component_struct(
 	}
 }
 
+fn gen_enum_components(
+	vis: &Visibility,
+	rename_all: &Option<LitStr>,
+	name: &Ident,
+	enums: EnumsSlice,
+) -> TokenStream2 {
+	let rename = match rename_all {
+		Some(rename) => quote!{#[serde(rename_all=#rename)]},
+		None => quote!{},
+	};
+	let enum_fields = enums.quote_fields();
+	let output = quote! {
+		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
+		#[rename]
+		#vis enum #name {
+			#( #enum_fields )*
+		}
+	};
+	output.into()
+}
+
 pub fn compile_rest(input: TokenStream) -> TokenStream {
 	let RestEndpoints{
 		endpoints
@@ -191,22 +214,40 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 		let methods: Vec<TokenStream> = endpoint.methods.iter().map(|method| {
 			let method_name = &method.method;
 			let uri = &method.uri;
-			let mut struct_names: Vec<Ident> = Vec::new();
 			
-			let structs: Vec<TokenStream2> = method.structs.iter().map(|method_struct| {
-				let Struct {
-					rename_all,
-					name,
-					parameters
-				} = method_struct;
-				
-				let struct_name = create_struct_name(&[
-					method_name.to_string().as_str(),
-					name.to_string().as_str()
-				]);
-				struct_names.push(Ident::new(&struct_name, Span::call_site()));
-				
-				gen_component_struct(vis, rename_all, name, &struct_name, parameters.into())
+			let mut struct_names: Vec<Ident> = Vec::new();
+			let mut enum_names: Vec<Ident> = Vec::new();
+			
+			let structs: Vec<TokenStream2> = method.data_types.iter().map(|endpoint_dt| {
+				match endpoint_dt {
+					EndpointDataType::Enum(en) => {
+						let Enum {
+							rename_all,
+							name,
+							enums,
+						} = en;
+						enum_names.push(name.clone());
+						println!("ENUM NAME: \"{}\"", name.to_string());
+						
+						gen_enum_components(vis, rename_all, name, enums.into())
+					},
+					EndpointDataType::Struct(st) => {
+						let Struct {
+							rename_all,
+							name,
+							parameters
+						} = st;
+						
+						
+						let struct_name = create_struct_name(&[
+							method_name.to_string().as_str(),
+							name.to_string().as_str()
+						]);
+						struct_names.push(Ident::new(&struct_name, Span::call_site()));
+						
+						gen_component_struct(vis, rename_all, name, &struct_name, parameters.into())
+					}
+				}
 			}).collect();
 			
 			// rust_fmt_quotes(&method_name.to_string(), &structs);

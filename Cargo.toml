@@ -15,6 +15,7 @@ syn = { version = "2.0.59", features = ["full"] }
 serde = { version = "1.0.197", features = ["derive"] }
 proc-macro2 = "1.0.81"
 serde_qs = "0.13.0"
+displaydoc = "0.2.4"
 
 [dev-dependencies]
 trybuild = "1.0.9"

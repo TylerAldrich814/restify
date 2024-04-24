@@ -1,17 +1,15 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use proc_macro2::Ident;
 use quote::quote;
 use syn::{LitStr, Type, Visibility};
 use crate::utils::doc_str::DocString;
 
 pub struct StructParameter {
-	// pub rename: Option<LitStr>,
 	pub rename: Option<Ident>,
 	pub name: Ident,
 	pub ty: Type,
 	pub optional: bool,
-	pub comma: bool,
 }
 
 impl StructParameter {
@@ -19,17 +17,9 @@ impl StructParameter {
 		let name = &self.name;
 		let kind = &self.ty;
 		let type_tokens = if self.optional {
-			if self.comma {
-				quote!{ #kind, }
-			} else {
-				quote!{ #kind }
-			}
+			quote!{Option<#kind>}
 		} else {
-			if self.comma{
-				quote! { #kind, }
-			} else {
-				quote! { #kind }
-			}
+			quote!{#kind}
 		};
 		let rename = &self.rename;
 		let output = match rename {
@@ -44,9 +34,19 @@ impl StructParameter {
 		output.into()
 	}
 }
-impl Debug for StructParameter {
+impl Display for StructParameter {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{}", self.quote().to_string())
+		if let Some(rename) = &self.rename {
+			write!(f, "#[serde(rename=\"{}\")]\n", rename.to_string())?;
+		}
+		write!(f, "{}: ", self.name.to_string())?;
+		let ty = &self.ty;
+		let d_type = quote!{ #ty };
+		if self.optional {
+			write!(f, "Option<{}>, \n", d_type.to_string())
+		} else {
+			write!(f, "{}, \n", d_type.to_string())
+		}
 	}
 }
 
@@ -62,42 +62,22 @@ pub struct StructParameterSlice<'s>{
 	slice: &'s [StructParameter],
 	current: usize,
 }
-
-pub enum SerdeType {
-	Serialize,
-	Deserialize,
-	Both,
-}
-//// # \#\[Serde] TokenStream Generator
-////TODO: couldn't come up with a more elegant way of handling all cases, and generating
-////  a Single #[serde] attribute block for both skip_serializing_if and rename
-// fn serde_query(
-// 	is_optional : bool,
-// 	serde_type  : SerdeType,
-// 	rename      : Option<Ident>,
-// 	serde_with  : Option<LitStr>,
-// ) -> TokenStream2 {
-// 	if serde_with.is_some(){
-// 		panic!("serde_with feature is yet to be implemented!");
+// impl<'s> Display for StructParameterSlice<'s> {
+// 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+// 		todo!()
 // 	}
-// 	// let ser_default = LitStr::new("#[serde(default)]", Span::call_site());
-// 	// let mut serde = "#[serde([1])]".to_string();
-// 	//
-// 	// let skip = if is_optional { "skip_serializing_if=\"Option::is_none\"" } else { "" };
-// 	// let name = if &rename.is_some() {
-// 	// 	format!(
-// 	// 		"rename=\"{}\"{}",
-// 	// 		rename.unwrap(),
-// 	// 		if skip.len() != 0 { ", " } else { "" }
-// 	// 	)
-// 	// } else { "".to_string() };
-// 	quote!().into()
 // }
 
 impl<'s> StructParameterSlice<'s> {
 	/// # Wrapper around Vec::len
 	pub fn len(&self) -> usize {
 		self.slice.len()
+	}
+	pub fn iter(&self) -> StructParameterSlice {
+		StructParameterSlice {
+			slice: &self.slice,
+			current: 0,
+		}
 	}
 	
 	pub fn query_field_docs(&self) -> Vec<TokenStream2> {
@@ -272,10 +252,6 @@ impl<'s> StructParameterSlice<'s> {
 			let doc_str = DocString::create()
 				.with_doc("# {}")
 				.build();
-			let oc_str = LitStr::new(
-				&format!("{}", name),
-				Span::call_site(),
-			);
 			
 			let fn_name = Ident::new(
 				&format!("with_{}", name.to_string()),
@@ -293,11 +269,28 @@ impl<'s> StructParameterSlice<'s> {
 			output.into()
 		}).collect();
 	}
-	pub fn iter(&self) -> StructParameterSlice {
-		StructParameterSlice {
-			slice: &self.slice,
-			current: 0,
-		}
+	
+	pub fn quote_enum_struct_params(&self) -> Vec<TokenStream2>{
+		return self.iter().map(|field| {
+			let name = &field.name;
+			let ty = &field.ty;
+			let opt = field.optional;
+			let rename = if let Some(name) = &field.rename {
+				let name = LitStr::new(&name.to_string(), Span::call_site());
+				quote!{#[serde(rename=#name)]}
+			} else { quote!{} };
+			let p_type = if opt {
+				quote!{ Option<#ty> }
+			} else {
+				quote!{ #ty }
+			};
+			
+			let output = quote!{
+				#rename
+				#name: #p_type,
+			};
+			output.into()
+		}).collect();
 	}
 }
 
@@ -305,12 +298,11 @@ impl<'s> Iterator for StructParameterSlice<'s> {
 	type Item = &'s StructParameter;
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.current >= self.len() {
-			None
-		} else {
-			let result = &self.slice[self.current];
-			self.current += 1;
-			Some(result)
+			return None;
 		}
+		let result = &self.slice[self.current];
+		self.current += 1;
+		return Some(result);
 	}
 }
 impl<'s> From<&'s Vec<StructParameter>> for StructParameterSlice<'s> {

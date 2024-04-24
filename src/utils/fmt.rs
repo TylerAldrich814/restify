@@ -31,11 +31,12 @@ pub fn rust_fmt_quotes(title: &str, quotes: &[TokenStream]){
 	for q in quotes.iter(){
 		raw.push_str(&q.to_string());
 	}
+	
 	fs::write(&file, raw).expect("Failed to create & add data to file");
 	Command::new("rustfmt")
 		.arg(&file)
 		.status()
-		.expect("Faioled to execute rustfmt");
+		.expect("Failed to execute rustfmt");
 	
 	let formatted_code = fs::read_to_string(&file).expect("Unable to read file");
 	println!("Formatted Code:\n{formatted_code}");

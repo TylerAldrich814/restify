@@ -57,28 +57,49 @@ rest!{
 	[pub MyEndpoint: {
 		GET "/api/user/{id}" => {
 			["camelCase"]
-			query: {
-				id: i32,
-				[userName]
-				user_name: ?String,
-				test_fn: MyTest,
-			}
-			response: {
-				user: String,
-			}
-		}
-		POST "/api/post/new" => {
-			header: {
-				auth: String
-			}
-			request: {
-				author: String,
-				title: ?String,
-				data: ?String,
+			enum ResponseKind: {
+				Success,
+				Failure{
+					status: String,
+					error: String,
+					message: ?String,
+				},
+				Unknown(String)
 			}
 		}
 	}]
 }
+
+// rest!{
+// 	[pub MyEndpoint: {
+// 		GET "/api/user/{id}" => {
+// 			["camelCase"]
+// 			enum MyEnum {
+// 				One,
+// 				Two(u64),
+// 			},
+// 			struct query: {
+// 				id: i32,
+// 				[userName]
+// 				user_name: ?String,
+// 				test_fn: MyTest,
+// 			}
+// 			fn response: {
+// 				user: String,
+// 			}
+// 		}
+// 		POST "/api/post/new" => {
+// 			fn header: {
+// 				auth: String
+// 			}
+// 			fn request: {
+// 				author: String,
+// 				title: ?String,
+// 				data: ?String,
+// 			}
+// 		}
+// 	}]
+// }
 
 
 fn main(){

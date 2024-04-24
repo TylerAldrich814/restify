@@ -19,22 +19,4 @@ pub fn rest(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn doc_str(input: TokenStream) -> TokenStream {
-	compile_doc_str(input)
-	// let DocString{
-	// 	input_str,
-	// 	parameters
-	// } = parse_macro_input!(input as DocString);
-	// let fmt_string = input_str.value();
-	// let mut result_string = fmt_string.clone();
-	//
-	// for param in parameters {
-	// 	let placeholder = format!("{{{}}} ", param.to_string());
-	// 	result_string = result_string.replace(&placeholder, &param.to_string())
-	// }
-	//
-	// let output = quote::quote!{
-	// 	#[doc = #result_string]
-	// };
-	// output.into()
-}
+pub fn doc_str(input: TokenStream) -> TokenStream { compile_doc_str(input) }
