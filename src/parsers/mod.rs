@@ -79,16 +79,22 @@ impl Parse for EnumParameter {
 			Span::call_site(),
 			"Invalid Enumeration Parameter kind"
 		));
-		if input.peek(Token![,]) {
+		let mut lookahead = input.lookahead1();
+		
+		if lookahead.peek(Token![,]) {
 			input.parse::<Token![,]>()?;
-			param = Ok(EnumParameter::None);
+			param = Ok(EnumParameter::Variant);
 		}
-		else if input.peek(syn::token::Paren) {
+		else if lookahead.peek(syn::token::Paren) {
 			let content;
 			parenthesized!(content in input);
-			param = Ok(EnumParameter::Ty(content.parse::<Type>()?));
+			
+			lookahead = content.lookahead1();
+			let opt = lookahead.peek(Token![?]);
+			if opt { content.parse::<Token![?]>()?; }
+			param = Ok(EnumParameter::Tuple {ty: content.parse::<Type>()?, opt});
 		}
-		else if input.peek(syn::token::Brace) {
+		else if lookahead.peek(syn::token::Brace) {
 			let mut parameters = Vec::new();
 			let mut params;
 			braced!(params in input);
@@ -98,6 +104,7 @@ impl Parse for EnumParameter {
 			}
 			param = Ok(EnumParameter::Struct(parameters));
 		}
+		
 		if input.peek(Token![,]) {
 			input.parse::<Token![,]>()?;
 		}
@@ -167,17 +174,16 @@ impl Parse for EndpointDataType {
 			Some(content.parse()?)
 		} else { None };
 		
-		let peekable = input.lookahead1();
-		
-		return if peekable.peek(Token![struct]) {
-			let kw = input.parse::<Token![struct]>()?;
+		lookahead = input.lookahead1();
+		return if lookahead.peek(Token![struct]) {
+			input.parse::<Token![struct]>()?;
 			
 			let mut st: Struct = input.parse()?;
 			st.rename_all = rename;
 			
 			Ok(EndpointDataType::Struct(st))
-		} else if peekable.peek(Token![enum]) {
-			let kw = input.parse::<Token![enum]>()?;
+		} else if lookahead.peek(Token![enum]) {
+			input.parse::<Token![enum]>()?;
 			
 			let mut en: Enum = input.parse()?;
 			en.rename_all = rename;
@@ -202,6 +208,9 @@ impl Parse for EndpointMethod {
 		let mut data_types: Vec<EndpointDataType> = Vec::new();
 		while !dt_content.is_empty() {
 			data_types.push(dt_content.parse()?);
+			if input.peek(Token![,]) {
+				input.parse::<Token![,]>()?;
+			}
 		}
 		
 		Ok(EndpointMethod { method, uri, data_types })

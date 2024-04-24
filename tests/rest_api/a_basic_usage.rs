@@ -53,18 +53,49 @@ fn todos(){}
 
 struct MyTest {}
 
+// rest!{
+// 	[pub MyEndpoint: {
+// 		GET "/api/user/{id}" => {
+// 			#["CamelCase"]
+// 			enum ResponseKind: {
+// 				Variant,
+// 				Tuple(?String),
+// 				Struct{
+// 					id: u64,
+// 					name: ?String,
+// 					date: ?DateTime,
+// 				}
+// 			},
+// 			#["camelCase"]
+// 			struct Response: {
+// 				kind: ?ResponseKind,
+// 				is_error: ?String,
+// 			},
+// 			#["camelCase"]
+// 			struct Query: {
+// 				id: u64,
+// 			}
+// 		}
+// 	}]
+// }
+
 rest!{
 	[pub MyEndpoint: {
 		GET "/api/user/{id}" => {
 			["camelCase"]
 			enum ResponseKind: {
-				Success,
-				Failure{
-					status: String,
-					error: String,
-					message: ?String,
-				},
-				Unknown(String)
+				Variant,
+				Tuple(?String),
+				Struct{
+					id: u64,
+					name: ?String,
+					date: ?DateTime,
+				}
+			}
+			struct response: {
+				kind: ?ResponseKind,
+				[IsError]
+				is_error: ?String,
 			}
 		}
 	}]

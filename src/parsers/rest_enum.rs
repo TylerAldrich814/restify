@@ -12,15 +12,22 @@ use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 pub struct Enum {
 	pub rename_all: Option<LitStr>,
 	pub name: Ident,
+	// pub display_doc: Vec<Option<>>,
 	pub enums: Vec<Enumeration>,
 }
 
 pub enum EnumParameter {
-	Ty(Type),
+	Tuple {
+		ty: Type,
+		opt: bool,
+	},
 	Struct(Vec<StructParameter>),
-	None,
+	Variant,
 }
 
+fn test(){
+	let enum_data = syn::Data::Enum();
+}
 
 pub struct Enumeration {
 	pub rename : Option<LitStr>,
@@ -36,8 +43,8 @@ impl fmt::Display for Enumeration {
 		write!(f, "{}", self.ident.to_string())?;
 		
 		match &self.param {
-			EnumParameter::None => write!(f, ",\n")?,
-			EnumParameter::Ty(ty) => {
+			EnumParameter::Variant => write!(f, ",\n")?,
+			EnumParameter::Tuple {ty, opt} => {
 				let ty = quote! { #ty };
 				write!(f, "({}),\n", ty.to_string())?
 			},
@@ -94,18 +101,24 @@ impl<'s> EnumsSlice<'s> {
 				quote!{#[serde(rename=#name)]}
 			} else { quote!{} };
 			match param {
-				EnumParameter::None => {
+				EnumParameter::Variant => {
 					let output = quote!{
 						#rename
 						#ident,
 					};
 					output.into()
 				}
-				EnumParameter::Ty(ty) => {
-					let output = quote!{
-						#rename
-						#ident(#ty),
-					};
+				EnumParameter::Tuple {ty, opt} => {
+					let output = if *opt {
+						quote!{
+							#rename
+							#ident(Option<#ty>),
+						}
+					} else {
+						quote!{
+							#rename
+							#ident(#ty),
+						}};
 					output.into()
 				}
 				EnumParameter::Struct(st) => {
@@ -123,41 +136,3 @@ impl<'s> EnumsSlice<'s> {
 		}).collect();
 	}
 }
-
-pub enum EEnumParameter {
-	Ty(Type),
-	Struct(Vec<StructParameter>),
-	None,
-}
-
-
-#[derive(serde::Serialize)]
-enum Testing {
-	One,
-	Two(String),
-	#[serde(rename="THREE")]
-	Three{
-		#[serde(rename="FOUR")]
-		four: u32,
-	},
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -250,7 +250,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 				}
 			}).collect();
 			
-			// rust_fmt_quotes(&method_name.to_string(), &structs);
+			rust_fmt_quotes(&method_name.to_string(), &structs);
 			
 			let rest_method_struct_name = create_struct_name(&[""]);
 			
