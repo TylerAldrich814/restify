@@ -14,7 +14,7 @@ pub enum ResponseKind {
 pub struct GETResponse {
     #[serde(default)]
     kind: ResponseKind,
-    #[serde(rename = IsError)]
+    # [serde (rename = IsError)]
     #[serde(default)]
     is_error: String,
 }
