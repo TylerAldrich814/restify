@@ -6,13 +6,13 @@ use quote::quote;
 use syn::{braced, bracketed, LitStr, Token, Type};
 use syn::parse::{Parse, ParseStream};
 use proc_macro2::TokenStream as TokenStream2;
+use crate::parsers::attribute::Attribute;
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 
 pub struct Enum {
 	pub rename_all: Option<LitStr>,
 	pub name: Ident,
-	// pub display_doc: Vec<Option<>>,
 	pub enums: Vec<Enumeration>,
 }
 
@@ -25,14 +25,12 @@ pub enum EnumParameter {
 	Variant,
 }
 
-fn test(){
-	let enum_data = syn::Data::Enum();
-}
 
 pub struct Enumeration {
-	pub rename : Option<LitStr>,
-	pub ident  : Ident,
-	pub param  : EnumParameter,
+	pub rename  : Option<LitStr>,
+	pub display : Option<Attribute>,
+	pub ident   : Ident,
+	pub param   : EnumParameter,
 }
 
 impl fmt::Display for Enumeration {
@@ -96,7 +94,7 @@ impl<'s> EnumsSlice<'s> {
 	}
 	pub fn quote_fields(&self) -> Vec<TokenStream2> {
 		return self.iter().map(|enumeration| {
-			let Enumeration { rename, ident, param } = enumeration;
+			let Enumeration { rename, display, ident, param } = enumeration;
 			let rename = if let Some(name) = rename {
 				quote!{#[serde(rename=#name)]}
 			} else { quote!{} };

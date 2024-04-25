@@ -1,26 +1,8 @@
 #![allow(unused)]
-use rest_macros::rest;
 
-mod my_ep {
-	struct MyEpQuery {
-		id: i32
-	}
-	struct MyEpResponse {
-	
-	}
-}
-// rest! {
-// 	[MyEndpoint: {
-// 		GET "/api/user/{id}" => {
-// 		["camelCase"]
-// 			query: {
-// 				id: i32,
-// 				name: ?String?,
-// 				email: ?String,
-// 			}
-// 		}
-// 	}]
-// }
+use displaydoc::Display;
+use std::path::Display;
+use rest_macros::restify;
 
 ///TODO:
 ///     * Adding #\[serde(with="users_crate::users_serializer")]]:
@@ -53,33 +35,9 @@ fn todos(){}
 
 struct MyTest {}
 
-// rest!{
-// 	[pub MyEndpoint: {
-// 		GET "/api/user/{id}" => {
-// 			#["CamelCase"]
-// 			enum ResponseKind: {
-// 				Variant,
-// 				Tuple(?String),
-// 				Struct{
-// 					id: u64,
-// 					name: ?String,
-// 					date: ?DateTime,
-// 				}
-// 			},
-// 			#["camelCase"]
-// 			struct Response: {
-// 				kind: ?ResponseKind,
-// 				is_error: ?String,
-// 			},
-// 			#["camelCase"]
-// 			struct Query: {
-// 				id: u64,
-// 			}
-// 		}
-// 	}]
-// }
 
-rest!{
+
+restify!{
 	[pub MyEndpoint: {
 		GET "/api/user/{id}" => {
 			["camelCase"]
@@ -101,36 +59,6 @@ rest!{
 	}]
 }
 
-// rest!{
-// 	[pub MyEndpoint: {
-// 		GET "/api/user/{id}" => {
-// 			["camelCase"]
-// 			enum MyEnum {
-// 				One,
-// 				Two(u64),
-// 			},
-// 			struct query: {
-// 				id: i32,
-// 				[userName]
-// 				user_name: ?String,
-// 				test_fn: MyTest,
-// 			}
-// 			fn response: {
-// 				user: String,
-// 			}
-// 		}
-// 		POST "/api/post/new" => {
-// 			fn header: {
-// 				auth: String
-// 			}
-// 			fn request: {
-// 				author: String,
-// 				title: ?String,
-// 				data: ?String,
-// 			}
-// 		}
-// 	}]
-// }
 
 
 fn main(){

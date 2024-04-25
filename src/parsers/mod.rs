@@ -1,11 +1,12 @@
 use std::process::id;
 use proc_macro2::{Literal, Span, TokenStream as TokenStream2};
-use quote::quote;
+use quote::{quote, quote_spanned};
 
 use proc_macro2::Ident;
-use syn::{braced, bracketed, LitStr, parenthesized, Token, Type, Visibility};
+use syn::{braced, bracketed, LitStr, parenthesized, parse_quote_spanned, Token, Type, Visibility};
 use syn::ext::IdentExt;
 use syn::parse::{Lookahead1, Parse, Parser, ParseStream};
+use crate::parsers::attribute::Attribute;
 use crate::parsers::endpoint::Endpoint;
 use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
@@ -17,6 +18,7 @@ pub mod endpoint_method;
 pub mod rest_struct;
 pub mod struct_parameter;
 pub mod rest_enum;
+pub mod attribute;
 
 pub static VALID_METHODS: &[&str] = &["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
 pub static VALID_REST_COMPONENT: &[&str] = &["header", "request", "response", "reqres", "query"];
@@ -112,25 +114,28 @@ impl Parse for EnumParameter {
 		return param;
 	}
 }
+
 impl Parse for Enumeration {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let rename = if input.peek(syn::token::Bracket) {
+		let mut lookahead = input.lookahead1();
+		let rename = if lookahead.peek(syn::token::Bracket) {
 			let rename;
 			bracketed!(rename in input);
 			Some(rename.parse()?)
 		} else { None };
 		
+		let display: Option<Attribute> = input.parse().ok();
+		
 		let ident: Ident = input.parse()?;
 		let param: EnumParameter = input.parse()?;
 		
-		Ok(Enumeration{ rename, ident, param })
+		Ok(Enumeration{ rename, display, ident, param })
 	}
 }
 impl Parse for Enum {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let name: Ident = input.parse()?;
-		let colon = input.parse::<Token![:]>()?;
-		let colon = quote!{ #colon };
+		input.parse::<Token![:]>()?;
 		
 		let mut enums: Vec<Enumeration> = Vec::new();
 		

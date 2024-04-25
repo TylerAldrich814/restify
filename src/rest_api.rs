@@ -13,6 +13,28 @@ use crate::utils::doc_str::DocString;
 use crate::utils::fmt::{rust_fmt_quotes};
 
 
+/// Generates a header struct as part of the `restify!` macro.
+///
+/// This function creates a Rust struct specifically designed for managing HTTP headers
+/// within REST API interactions. It automatically implements `serde::Deserialize` to
+/// facilitate parsing header data from incoming HTTP requests.
+///
+/// ## Design Rationale
+/// - Headers in HTTP requests are critical for controlling and understanding both the
+///   request and response contexts. This function ensures that header structures are
+///   robustly defined and easily manageable through serialized data structures.
+///
+/// ## Parameters
+/// - `vis`: The visibility specifier of the struct (`pub`, `pub(crate)`, etc.).
+/// - `rename_all`: A `TokenStream2` that specifies renaming conventions to apply to fields
+///   using serde's rename attributes, aiding in the alignment with HTTP header conventions.
+/// - `name`: The identifier of the struct.
+/// - `fields`: A collection of fields representing the HTTP headers, typically parsed
+///   from a slice of `StructParameter`.
+///
+/// ## Returns
+/// `TokenStream2` representing the Rust source code for the header struct,
+/// ready for inclusion in the macro output.
 fn gen_header(
 	vis        : &Visibility,
 	rename_all : TokenStream2,
@@ -39,6 +61,36 @@ fn gen_header(
 	};
 	output.into()
 }
+
+/// Constructs a request struct as part of the `restify!` macro.
+///
+/// This function generates a Rust struct tailored for REST API requests. It automatically
+/// implements `serde::Serialize` to facilitate sending data as part of HTTP requests.
+/// This structure is specifically designed for outbound data serialization.
+///
+/// ## Recommendations
+/// - For structures requiring both serialization and deserialization, consider using
+///   the `ReqRes` structure provided by this library. It supports both `serde::Serialize`
+///   and `serde::Deserialize`, making it suitable for scenarios where the same data structure
+///   is used for both sending and receiving data.
+///
+/// ## Design Rationale
+/// - The decision to implement only `serde::Serialize` by default for request structures is
+///   intentional to reduce the overhead associated with code generation. Not all RESTful
+///   structures require full serialization and deserialization capabilities. This approach
+///   minimizes code bloat and focuses on the most common use cases for request objects.
+///
+/// ## Parameters
+/// - `vis`: The visibility specifier of the struct (`pub`, `pub(crate)`, etc.).
+/// - `rename_all`: A `TokenStream2` that specifies renaming conventions to apply to fields
+///   using serde's rename attributes.
+/// - `name`: The identifier of the struct.
+/// - `fields`: A collection of fields to be included in the struct, typically parsed
+///   from a slice of `StructParameter`.
+///
+/// ## Returns
+/// a `TokenStream2` representing the complete Rust source code of the struct,
+/// ready to be included in the output of a procedural macro.fn gen_request(
 fn gen_request(
 	vis        : &Visibility,
 	rename_all : TokenStream2,
@@ -65,6 +117,28 @@ fn gen_request(
 	};
 	output.into()
 }
+
+/// Constructs a response struct for REST API endpoints within the `restify!` macro.
+///
+/// This function generates a Rust struct tailored for handling responses in RESTful services.
+/// It supports automatic implementation of `serde::Deserialize` to seamlessly convert HTTP
+/// response data into strongly typed Rust structures.
+///
+/// ## Design Rationale
+/// - Effective management of API responses enhances reliability and type-safety across
+///   server-client communications. This function ensures that API responses are predictably
+///   structured and easily parsed.
+///
+/// ## Parameters
+/// - `vis`: The visibility specifier of the struct (`pub`, `pub(crate)`, etc.).
+/// - `rename_all`: A `TokenStream2` used to apply renaming rules to fields as per serde's
+///   renaming attributes, ensuring consistency with JSON or XML response formats.
+/// - `name`: The identifier of the struct.
+/// - `fields`: A slice of `StructParameter` defining the structure of the response data.
+///
+/// ## Returns
+/// Produces a `TokenStream2` containing the Rust code for the response struct, which
+/// can be integrated directly into procedural macro output
 fn gen_response(
 	vis        : &Visibility,
 	rename_all : TokenStream2,
@@ -92,6 +166,27 @@ fn gen_response(
 	output.into()
 }
 
+/// Creates a unified struct for both requests and responses in RESTful APIs using the `restify!` macro.
+///
+/// This function is designed to handle scenarios where the same data structure is used for both
+/// sending requests and receiving responses, implementing both `serde::Serialize` and
+/// `serde::Deserialize` for maximum flexibility.
+///
+/// ## Design Rationale
+/// - In many REST API patterns, especially in CRUD operations, the same data model may be used
+///   for both sending data to and receiving data from the server. This approach minimizes code duplication
+///   and enhances maintainability.
+///
+/// ## Parameters
+/// - `vis`: The visibility of the struct, determining its accessibility (`pub`, `pub(crate)`, etc.).
+/// - `rename_all`: A `TokenStream2` to specify field renaming conventions based on serde's attributes,
+///   aligning with typical JSON or XML naming conventions.
+/// - `name`: The name of the struct, used as the identifier in the generated Rust code.
+/// - `fields`: The collection of fields that define the data structure, parsed from `StructParameterSlice`.
+///
+/// ## Returns
+/// Generates a `TokenStream2` that outlines the complete Rust source code for a dual-purpose struct,
+/// facilitating integration into the macro's output.
 fn gen_reqres(
 	vis        : &Visibility,
 	rename_all : TokenStream2,
@@ -227,7 +322,6 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 							enums,
 						} = en;
 						enum_names.push(name.clone());
-						println!("ENUM NAME: \"{}\"", name.to_string());
 						
 						gen_enum_components(vis, rename_all, name, enums.into())
 					},

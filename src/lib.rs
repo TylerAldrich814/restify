@@ -7,14 +7,13 @@ use syn::parse_macro_input;
 use crate::doc_str::{compile_doc_str, DocString};
 use crate::rest_api::compile_rest;
 
-
 mod utils;
 mod parsers;
 mod doc_str;
 mod rest_api;
 
 #[proc_macro]
-pub fn rest(input: TokenStream) -> TokenStream {
+pub fn restify(input: TokenStream) -> TokenStream {
 	compile_rest(input)
 }
 
