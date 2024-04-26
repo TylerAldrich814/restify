@@ -13,7 +13,7 @@ use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
 use crate::parsers::rest_enum::{Enum, Enumeration, EnumParameter};
 use crate::parsers::rest_struct::Struct;
-use crate::parsers::tools::parse_for_rename;
+use crate::parsers::tools::{parse_for_rename, parse_struct_name_and_variant};
 
 pub mod endpoint;
 pub mod endpoint_method;
@@ -40,6 +40,15 @@ pub static VALID_REST_COMPONENT: &[&str] = &[
 	"Query"
 ];
 
+pub fn valid_rest_component(identifier: &Ident) -> bool {
+	[
+		"Header",
+		"Request",
+		"Response",
+		"Reqres",
+		"Query"
+	].contains(&identifier.to_string().as_str())
+}
 
 /// # Level 0 Rest Macro Parser
 /// Takes in the entire ParseStream.
@@ -153,7 +162,7 @@ impl Parse for Enumeration {
 impl Parse for Enum {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let name: Ident = input.parse()?;
-		input.parse::<Token![:]>()?;
+		// input.parse::<Token![:]>()?;
 		
 		let mut enums: Vec<Enumeration> = Vec::new();
 		
@@ -169,13 +178,7 @@ impl Parse for Enum {
 
 impl Parse for Struct {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let name: Ident = input.parse()?;
-		if !VALID_REST_COMPONENT.contains(&name.to_string().as_str()) {
-			return Err(syn::Error::new(name.span(), "Invalid REST Component Name"));
-		}
-		
-		input.parse::<Token![:]>()?;
-		
+		let (name, rest_variant) = parse_struct_name_and_variant(&input)?;
 		let mut parameters: Vec<StructParameter> = Vec::new();
 		
 		let content;
@@ -184,7 +187,7 @@ impl Parse for Struct {
 			parameters.push(content.parse()?);
 		}
 		
-		Ok(Struct{ rename_all: None, name, parameters })
+		Ok(Struct{ rename_all: None, name, rest_variant, parameters })
 	}
 }
 

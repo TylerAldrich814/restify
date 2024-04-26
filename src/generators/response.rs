@@ -40,6 +40,7 @@ pub fn gen_response(
 		.build();
 	
 	let output = quote! {
+		#[doc = "Response Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Deserialize)]
 		#rename_all
 		#vis struct #name {

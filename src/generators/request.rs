@@ -47,6 +47,7 @@ pub fn gen_request(
 		.build();
 	
 	let output = quote! {
+		#[doc = "Request Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
 		#rename_all
 		#vis struct #name {

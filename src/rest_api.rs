@@ -46,6 +46,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 						let Struct {
 							rename_all,
 							name,
+							rest_variant,
 							parameters
 						} = st;
 						
@@ -55,7 +56,14 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 						]);
 						struct_names.push(Ident::new(&struct_name, Span::call_site()));
 						
-						gen_component_struct(vis, rename_all, name, &struct_name, parameters.into())
+						gen_component_struct(
+							vis,
+							rename_all,
+							name,
+							rest_variant,
+							&struct_name,
+							parameters.into()
+						)
 					}
 				}
 			}).collect();

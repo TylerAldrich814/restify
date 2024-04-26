@@ -38,7 +38,7 @@ restify!{
 	[pub MyEndpoint: {
 		GET "/api/user/{id}" => {
 			["CamelCase"]
-			enum ResponseKind: {
+			enum ResponseKind {
 				Variant,
 				Tuple(?String),
 				Struct{
@@ -48,7 +48,7 @@ restify!{
 				}
 			}
 			["camelCase"]
-			struct Response: {
+			struct MyCustomStructName<Response> {
 				kind: ?ResponseKind,
 				["IsError"]
 				is_error: ?String,
@@ -56,12 +56,12 @@ restify!{
 		},
 		POST "/api/user/{id}" => {
 			["camelCase"]
-			struct Request: {
+			struct Request {
 				id: String,
 				message: String,
 				time_stamp: String,
 			}
-			struct Response: {
+			struct Response {
 				kind: ?ResponseKind,
 			}
 		},

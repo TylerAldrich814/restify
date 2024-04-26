@@ -6,6 +6,19 @@ use syn::{LitStr, Type, Visibility};
 use syn::spanned::Spanned;
 use crate::utils::doc_str::DocString;
 
+/// # StructParameter:
+/// A Data type for holding the data parsed from `restify!` TokenStream input.
+///
+/// # Parameters:
+///   - [Option]<[LitStr]> rename: An Optional value. It Will contain a LitStr when a
+///     `rename` Token is discovered preceding a struct parameter definition within
+///     `restify!`
+///   - [Ident] name: The defined name for this struct parameter.
+///   - [Type] ty: The defined Type for this struct parameter.
+///   - [bool] optional: If a '?' is found to be placed in front of a struct parameter type,
+///     This will cause the code to turn this type into an Optional value. Along with any
+///     corresponding serde attributes, depending on the REST Component Type of the parent
+///     struct.
 pub struct StructParameter {
 	pub rename: Option<LitStr>,
 	pub name: Ident,

@@ -9,16 +9,17 @@ pub enum ResponseKind {
         date: Option<DateTime>,
     },
 }
+#[doc = "Response Variant"]
 #[derive(std :: fmt :: Debug, Clone, serde :: Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct GETResponse {
+pub struct GETMyCustomStructName {
     #[serde(default)]
     pub kind: ResponseKind,
     #[serde(rename = "IsError")]
     #[serde(default)]
     pub is_error: String,
 }
-impl GETResponse {
+impl GETMyCustomStructName {
     pub fn with_kind(mut self, kind: ResponseKind) -> Self {
         self.kind = kind;
         return self;
