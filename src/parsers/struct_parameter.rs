@@ -230,14 +230,6 @@ impl<'s> StructParameterSlice<'s> {
 				struct _AssertSer where #field_type: serde::Serialize + for<'de> serde::Deserialize<'de>;
 			};
 			
-			// let rename = {
-			// 	let rename = &field.rename;
-			// 	if rename.is_some() {
-			// 		quote! { #[serde(rename=#rename)] }
-			// 	} else {
-			// 		quote! {}
-			// 	}
-			// };
 			let rename = &field.quote_rename();
 			
 			let output = if field.optional {
@@ -301,10 +293,6 @@ impl<'s> StructParameterSlice<'s> {
 			let name = &field.name;
 			let ty = &field.ty;
 			let opt = field.optional;
-			// let rename = if let Some(name) = &field.rename {
-			// 	let name = LitStr::new(&name.to_string(), Span::call_site());
-			// 	quote!{#[serde(rename=#name)]}
-			// } else { quote!{} };
 			let rename = &field.quote_rename();
 			
 			let p_type = if opt {
@@ -328,9 +316,9 @@ impl<'s> Iterator for StructParameterSlice<'s> {
 		if self.current >= self.len() {
 			return None;
 		}
-		let result = &self.slice[self.current];
+		let next_res = &self.slice[self.current];
 		self.current += 1;
-		return Some(result);
+		return Some(next_res);
 	}
 }
 impl<'s> From<&'s Vec<StructParameter>> for StructParameterSlice<'s> {

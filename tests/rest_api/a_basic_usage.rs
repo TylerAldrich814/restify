@@ -33,40 +33,49 @@ use rest_macros::restify;
 ///     * Find a better solution for the compiled Struct/Enum Documentation.
 fn todos(){}
 
-
 restify!{
-	[pub MyEndpoint: {
-		GET "/api/user/{id}" => {
-			["CamelCase"]
-			enum ResponseKind {
-				Variant,
-				Tuple(?String),
-				Struct{
-					id: String,
-					name: ?String,
-					date: ?DateTime,
-				}
+	[pub DoesVecWork: {
+		PUT "/api/vec/{ids}"  => {
+			struct MyIDs<Request> {
+				ids: Vec<u64>,
 			}
-			["camelCase"]
-			struct MyCustomStructName<Response> {
-				kind: ?ResponseKind,
-				["IsError"]
-				is_error: ?String,
-			}
-		},
-		POST "/api/user/{id}" => {
-			["camelCase"]
-			struct Request {
-				id: String,
-				message: String,
-				time_stamp: String,
-			}
-			struct Response {
-				kind: ?ResponseKind,
-			}
-		},
+		}
 	}]
 }
+
+// restify!{
+// 	[pub MyEndpoint: {
+// 		GET "/api/user/{id}" => {
+// 			["CamelCase"]
+// 			enum ResponseKind {
+// 				Variant,
+// 				Tuple(?String),
+// 				Struct{
+// 					id: String,
+// 					name: ?String,
+// 					date: ?DateTime,
+// 				}
+// 			}
+// 			["camelCase"]
+// 			struct MyCustomStructName<Response> {
+// 				kind: ?ResponseKind,
+// 				["IsError"]
+// 				is_error: ?String,
+// 			}
+// 		},
+// 		POST "/api/user/{id}" => {
+// 			["camelCase"]
+// 			struct Request {
+// 				id: String,
+// 				message: String,
+// 				time_stamp: String,
+// 			}
+// 			struct Response {
+// 				kind: ?ResponseKind,
+// 			}
+// 		},
+// 	}]
+// }
 
 
 fn main(){
