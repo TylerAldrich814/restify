@@ -4,12 +4,11 @@ pub enum ResponseKind {
     Variant,
     Tuple(Option<String>),
     Struct {
-        id: u64,
+        id: MyTest,
         name: Option<String>,
         date: Option<DateTime>,
     },
 }
-#[doc]
 #[derive(std :: fmt :: Debug, Clone, serde :: Deserialize)]
 pub struct GETResponse {
     #[serde(default)]
@@ -18,4 +17,13 @@ pub struct GETResponse {
     #[serde(default)]
     is_error: String,
 }
-impl GETResponse {}
+impl GETResponse {
+    fn with_kind(mut self, kind: ResponseKind) -> Self {
+        self.kind = kind;
+        return self;
+    }
+    fn with_is_error(mut self, is_error: String) -> Self {
+        self.is_error = is_error;
+        return self;
+    }
+}

@@ -1,4 +1,0 @@
-# rustfmt.toml
-hard_table = true
-max_width = 100
-spaces_around_ranges = false

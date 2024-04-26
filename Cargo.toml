@@ -2,6 +2,13 @@
 name = "restify"
 version = "0.1.0"
 edition = "2021"
+authors = ["Tyler Aldrich"]
+description = "A powerful procedural macro designed to streamline the development and compilation of client-side RESTful API interactions in Rust."
+license = "MIT license"
+repository = "https://github.com/TylerAldrich814/restify"
+readme = "README.md"
+keywords = ["ProcMacro", "REST", "ClientSide", "Generator", "DevTool"]
+categories = [ "development-tools", "api-bindings", "web-programming::http-client", "text-processing", "compilers" ]
 
 [lib]
 proc-macro = true

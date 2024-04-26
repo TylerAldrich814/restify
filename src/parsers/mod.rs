@@ -6,6 +6,7 @@ use proc_macro2::Ident;
 use syn::{braced, bracketed, LitStr, parenthesized, parse_quote_spanned, Token, Type, Visibility};
 use syn::ext::IdentExt;
 use syn::parse::{Lookahead1, Parse, Parser, ParseStream};
+use syn::spanned::Spanned;
 use crate::parsers::attribute::Attribute;
 use crate::parsers::endpoint::Endpoint;
 use crate::parsers::struct_parameter::StructParameter;
@@ -65,14 +66,19 @@ impl Parse for StructParameter {
 		let optional = lookahead.peek(Token![?]);
 		if optional{ input.parse::<Token![?]>()?; }
 		
-		let kind: Type = input.parse()?;
+		let ty: Type = input.parse()?;
+		
+		//TODO: Not working atm, not sure why
+		let assert_debug = quote_spanned! {ty.span() =>
+			struct _AssertDebug where #ty: std::display::Debug + std::clone::Clone;
+		};
 		
 		lookahead = input.lookahead1();
 		if lookahead.peek(Token![,]) {
 			input.parse::<Token![,]>()?;
 		}
 		
-		Ok(StructParameter{ rename, name, ty: kind, optional })
+		Ok(StructParameter{ rename, name, ty, optional })
 	}
 }
 impl Parse for EnumParameter {

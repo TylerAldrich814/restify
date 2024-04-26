@@ -33,9 +33,6 @@ use rest_macros::restify;
 ///     * Find a better solution for the compiled Struct/Enum Documentation.
 fn todos(){}
 
-struct MyTest {}
-
-
 
 restify!{
 	[pub MyEndpoint: {
@@ -45,7 +42,7 @@ restify!{
 				Variant,
 				Tuple(?String),
 				Struct{
-					id: u64,
+					id: MyTest,
 					name: ?String,
 					date: ?DateTime,
 				}
@@ -58,7 +55,6 @@ restify!{
 		}
 	}]
 }
-
 
 
 fn main(){

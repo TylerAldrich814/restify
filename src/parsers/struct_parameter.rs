@@ -1,8 +1,9 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use std::fmt::{Debug, Display, Formatter};
 use proc_macro2::Ident;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::{LitStr, Type, Visibility};
+use syn::spanned::Spanned;
 use crate::utils::doc_str::DocString;
 
 pub struct StructParameter {
@@ -127,6 +128,11 @@ impl<'s> StructParameterSlice<'s> {
 			let vis = Visibility::Inherited;
 			let field_name = &field.name;
 			let field_type = &field.ty;
+			
+			let assert_ser = quote_spanned! {field_type.span() =>
+				struct _AssertSer where #field_type: serde::Serialize;
+			};
+			
 			let rename = {
 				if let Some(rename) = &field.rename {
 					let rename = LitStr::new(
@@ -171,6 +177,11 @@ impl<'s> StructParameterSlice<'s> {
 			let vis = Visibility::Inherited;
 			let field_name = &field.name;
 			let field_type = &field.ty;
+			
+			let assert_de = quote_spanned! {field_type.span() =>
+				struct _AssertSer where #field_type: for<'de> serde::Deserialize<'de>;
+			};
+			
 			let rename = {
 				let rename = &field.rename;
 				if rename.is_some() {
@@ -200,6 +211,12 @@ impl<'s> StructParameterSlice<'s> {
 			let vis = Visibility::Inherited;
 			let field_name = &field.name;
 			let field_type = &field.ty;
+			
+			//TODO: Not working atm, not sure why
+			let assert_de = quote_spanned! {field_type.span() =>
+				struct _AssertSer where #field_type: serde::Serialize + for<'de> serde::Deserialize<'de>;
+			};
+			
 			let rename = {
 				let rename = &field.rename;
 				if rename.is_some() {
@@ -249,9 +266,6 @@ impl<'s> StructParameterSlice<'s> {
 			let vis = Visibility::Inherited;
 			let name = &field.name;
 			let ty = &field.ty;
-			let doc_str = DocString::create()
-				.with_doc("# {}")
-				.build();
 			
 			let fn_name = Ident::new(
 				&format!("with_{}", name.to_string()),
@@ -259,7 +273,6 @@ impl<'s> StructParameterSlice<'s> {
 			);
 			
 			let output = quote!{
-				#[doc = ]
 				#vis fn #fn_name(mut self, #name: #ty) -> Self {
 					self.#name = #name;
 					return self;
@@ -313,24 +326,3 @@ impl<'s> From<&'s Vec<StructParameter>> for StructParameterSlice<'s> {
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
