@@ -7,7 +7,7 @@ use syn::spanned::Spanned;
 use crate::utils::doc_str::DocString;
 
 pub struct StructParameter {
-	pub rename: Option<Ident>,
+	pub rename: Option<LitStr>,
 	pub name: Ident,
 	pub ty: Type,
 	pub optional: bool,
@@ -34,11 +34,18 @@ impl StructParameter {
 		};
 		output.into()
 	}
+	pub fn quote_rename(&self) -> TokenStream2 {
+		return if let Some(name) = &self.rename {
+			quote! { #[serde(rename=#name)] }
+		} else {
+			quote! {}
+		};
+	}
 }
 impl Display for StructParameter {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		if let Some(rename) = &self.rename {
-			write!(f, "#[serde(rename=\"{}\")]\n", rename.to_string())?;
+			write!(f, "#[serde(rename=\"{}\")]\n", rename.value())?;
 		}
 		write!(f, "{}: ", self.name.to_string())?;
 		let ty = &self.ty;
@@ -123,9 +130,8 @@ impl<'s> StructParameterSlice<'s> {
 	/// }
 	/// else { quote!{} }
 	/// ```
-	pub fn quote_serialize(&self) -> Vec<TokenStream2> {
+	pub fn quote_serialize(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.iter().map(|field| {
-			let vis = Visibility::Inherited;
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -133,17 +139,19 @@ impl<'s> StructParameterSlice<'s> {
 				struct _AssertSer where #field_type: serde::Serialize;
 			};
 			
-			let rename = {
-				if let Some(rename) = &field.rename {
-					let rename = LitStr::new(
-						&format!("{}", &rename.to_string()),
-						Span::call_site()
-					);
-					quote! { #[serde(rename=#rename)] }
-				} else {
-					quote! {}
-				}
-			};
+			// let rename = {
+			// 	if let Some(rename) = &field.rename {
+			// 		let rename = LitStr::new(
+			// 			&format!("{}", &rename.to_string()),
+			// 			Span::call_site()
+			// 		);
+			// 		quote! { #[serde(rename=#rename)] }
+			// 	} else {
+			// 		quote! {}
+			// 	}
+			// };
+			let rename = &field.quote_rename();
+			
 			let output = if field.optional {
 				quote! {
 					#rename
@@ -159,6 +167,7 @@ impl<'s> StructParameterSlice<'s> {
 			return output.into();
 		}).collect();
 	}
+	
 	/// # StructParameter: Deserialize
 	/// Iterates over a slice of StructParameters.
 	/// If a StructParameter is optional.
@@ -172,9 +181,8 @@ impl<'s> StructParameterSlice<'s> {
 	/// }
 	/// else { quote!{} }
 	/// ```
-	pub fn quote_deserialize(&self) -> Vec<TokenStream2>{
+	pub fn quote_deserialize(&self, vis: &Visibility) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
-			let vis = Visibility::Inherited;
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -182,14 +190,7 @@ impl<'s> StructParameterSlice<'s> {
 				struct _AssertSer where #field_type: for<'de> serde::Deserialize<'de>;
 			};
 			
-			let rename = {
-				let rename = &field.rename;
-				if rename.is_some() {
-					quote! { #[serde(rename=#rename)] }
-				} else {
-					quote! {}
-				}
-			};
+			let rename = &field.quote_rename();
 			let output = if field.optional {
 				quote! {
 					#rename
@@ -206,9 +207,8 @@ impl<'s> StructParameterSlice<'s> {
 		}).collect();
 	}
 	/// # StructParameter: Deserialize & Serialize
-	pub fn quote_full_serde(&self) -> Vec<TokenStream2> {
+	pub fn quote_full_serde(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.slice.iter().map(|field| {
-			let vis = Visibility::Inherited;
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -217,14 +217,15 @@ impl<'s> StructParameterSlice<'s> {
 				struct _AssertSer where #field_type: serde::Serialize + for<'de> serde::Deserialize<'de>;
 			};
 			
-			let rename = {
-				let rename = &field.rename;
-				if rename.is_some() {
-					quote! { #[serde(rename=#rename)] }
-				} else {
-					quote! {}
-				}
-			};
+			// let rename = {
+			// 	let rename = &field.rename;
+			// 	if rename.is_some() {
+			// 		quote! { #[serde(rename=#rename)] }
+			// 	} else {
+			// 		quote! {}
+			// 	}
+			// };
+			let rename = &field.quote_rename();
 			
 			let output = if field.optional {
 				quote! {
@@ -261,9 +262,8 @@ impl<'s> StructParameterSlice<'s> {
 	///   return self;
 	/// }
 	/// ```
-	pub fn quote_builder_fn(&self) -> Vec<TokenStream2> {
+	pub fn quote_builder_fn(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.iter().map(|field| {
-			let vis = Visibility::Inherited;
 			let name = &field.name;
 			let ty = &field.ty;
 			
@@ -288,10 +288,12 @@ impl<'s> StructParameterSlice<'s> {
 			let name = &field.name;
 			let ty = &field.ty;
 			let opt = field.optional;
-			let rename = if let Some(name) = &field.rename {
-				let name = LitStr::new(&name.to_string(), Span::call_site());
-				quote!{#[serde(rename=#name)]}
-			} else { quote!{} };
+			// let rename = if let Some(name) = &field.rename {
+			// 	let name = LitStr::new(&name.to_string(), Span::call_site());
+			// 	quote!{#[serde(rename=#name)]}
+			// } else { quote!{} };
+			let rename = &field.quote_rename();
+			
 			let p_type = if opt {
 				quote!{ Option<#ty> }
 			} else {

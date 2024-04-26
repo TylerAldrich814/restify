@@ -12,6 +12,7 @@ mod parsers;
 mod doc_str;
 mod rest_api;
 mod generators;
+mod reference;
 
 #[proc_macro]
 pub fn restify(input: TokenStream) -> TokenStream {

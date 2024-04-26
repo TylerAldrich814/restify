@@ -32,8 +32,8 @@ pub fn gen_response(
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
-	let response_fields = fields.quote_deserialize();
-	let response_builders = fields.quote_builder_fn();
+	let response_fields = fields.quote_deserialize(vis);
+	let response_builders = fields.quote_builder_fn(vis);
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())

@@ -1,7 +1,8 @@
-# Restify!
+# restify!
 
-A Rust Procedual Macro for REST API Client side code Development. For simplifying and
-speeding up development by automating your typical client-side REST API boilerplate code.
+A procedural macro for generating client-side code for REST APIs. Restify simplifies development by accelerating and automating
+the creation of client-side RESTful API interactions, generating the essential boilerplate code typically required for
+communicating with HTTP RESTful servers
 
 ## Basic Usage:
 ```rust

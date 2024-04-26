@@ -39,8 +39,8 @@ pub fn gen_request(
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
-	let request_fields = fields.quote_serialize();
-	let request_builders = fields.quote_builder_fn();
+	let request_fields = fields.quote_serialize(vis);
+	let request_builders = fields.quote_builder_fn(vis);
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())

@@ -3,7 +3,6 @@ use proc_macro2::{Ident, Span};
 use quote::quote;
 use syn::{LitStr, Visibility};
 use crate::parsers::struct_parameter::StructParameterSlice;
-
 pub mod query;
 pub mod header;
 pub mod request;
@@ -17,6 +16,7 @@ use response::gen_response;
 use reqres::gen_reqres;
 use crate::parsers::rest_enum::EnumsSlice;
 
+/// Generates a Rust Enum based on the provided parameters.
 pub fn gen_enum_components(
 	vis: &Visibility,
 	rename_all: &Option<LitStr>,
@@ -55,11 +55,11 @@ pub fn gen_component_struct(
 	};
 	
 	match ident.to_string().as_str() {
-		"header"   => gen_header(&vis, rename, &name, block),
-		"request"  => gen_request(&vis, rename, &name, block),
-		"response" => gen_response(&vis, rename, &name, block),
-		"reqres"   => gen_reqres(&vis, rename, &name, block),
-		"query"    => gen_query(&vis, rename, &name, block),
+		"Header"   => gen_header(&vis, rename, &name, block),
+		"Request"  => gen_request(&vis, rename, &name, block),
+		"Response" => gen_response(&vis, rename, &name, block),
+		"Reqres"   => gen_reqres(&vis, rename, &name, block),
+		"Query"    => gen_query(&vis, rename, &name, block),
 		_ => unreachable!()
 	}
 }

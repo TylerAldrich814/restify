@@ -33,8 +33,8 @@ pub fn gen_header(
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
-	let header_fields = fields.quote_serialize();
-	let header_builders = fields.quote_builder_fn();
+	let header_fields = fields.quote_serialize(vis);
+	let header_builders = fields.quote_builder_fn(vis);
 	let mut doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())

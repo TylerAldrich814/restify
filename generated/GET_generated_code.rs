@@ -4,25 +4,26 @@ pub enum ResponseKind {
     Variant,
     Tuple(Option<String>),
     Struct {
-        id: MyTest,
+        id: String,
         name: Option<String>,
         date: Option<DateTime>,
     },
 }
 #[derive(std :: fmt :: Debug, Clone, serde :: Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GETResponse {
     #[serde(default)]
-    kind: ResponseKind,
-    # [serde (rename = IsError)]
+    pub kind: ResponseKind,
+    #[serde(rename = "IsError")]
     #[serde(default)]
-    is_error: String,
+    pub is_error: String,
 }
 impl GETResponse {
-    fn with_kind(mut self, kind: ResponseKind) -> Self {
+    pub fn with_kind(mut self, kind: ResponseKind) -> Self {
         self.kind = kind;
         return self;
     }
-    fn with_is_error(mut self, is_error: String) -> Self {
+    pub fn with_is_error(mut self, is_error: String) -> Self {
         self.is_error = is_error;
         return self;
     }

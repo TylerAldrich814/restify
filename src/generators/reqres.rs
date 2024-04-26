@@ -32,8 +32,8 @@ pub fn gen_reqres(
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
 	//TODO: Create a query_ser_der or some shit since reqres will implement both.
-	let reqres_fields = fields.quote_serialize();
-	let reqres_builders = fields.quote_builder_fn();
+	let reqres_fields = fields.quote_serialize(vis);
+	let reqres_builders = fields.quote_builder_fn(vis);
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())

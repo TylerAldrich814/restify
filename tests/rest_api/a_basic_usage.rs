@@ -37,22 +37,34 @@ fn todos(){}
 restify!{
 	[pub MyEndpoint: {
 		GET "/api/user/{id}" => {
-			["camelCase"]
+			["CamelCase"]
 			enum ResponseKind: {
 				Variant,
 				Tuple(?String),
 				Struct{
-					id: MyTest,
+					id: String,
 					name: ?String,
 					date: ?DateTime,
 				}
 			}
-			struct response: {
+			["camelCase"]
+			struct Response: {
 				kind: ?ResponseKind,
-				[IsError]
+				["IsError"]
 				is_error: ?String,
 			}
-		}
+		},
+		POST "/api/user/{id}" => {
+			["camelCase"]
+			struct Request: {
+				id: String,
+				message: String,
+				time_stamp: String,
+			}
+			struct Response: {
+				kind: ?ResponseKind,
+			}
+		},
 	}]
 }
 

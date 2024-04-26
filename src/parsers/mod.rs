@@ -13,6 +13,7 @@ use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
 use crate::parsers::rest_enum::{Enum, Enumeration, EnumParameter};
 use crate::parsers::rest_struct::Struct;
+use crate::parsers::tools::parse_for_rename;
 
 pub mod endpoint;
 pub mod endpoint_method;
@@ -20,9 +21,24 @@ pub mod rest_struct;
 pub mod struct_parameter;
 pub mod rest_enum;
 pub mod attribute;
+mod tools;
 
-pub static VALID_METHODS: &[&str] = &["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
-pub static VALID_REST_COMPONENT: &[&str] = &["header", "request", "response", "reqres", "query"];
+pub static VALID_METHODS: &[&str] = &[
+	"GET",
+	"POST",
+	"PUT",
+	"DELETE",
+	"PATCH",
+	"OPTIONS",
+	"HEAD"
+];
+pub static VALID_REST_COMPONENT: &[&str] = &[
+	"Header",
+	"Request",
+	"Response",
+	"Reqres",
+	"Query"
+];
 
 
 /// # Level 0 Rest Macro Parser
@@ -52,11 +68,7 @@ pub struct RestEndpoints {
 impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let rename: Option<Ident> = if lookahead.peek(syn::token::Bracket) {
-			let content;
-			bracketed!(content in input);
-			Some(content.parse()?)
-		} else { None };
+		let rename = parse_for_rename(input).ok();
 		
 		let name: Ident = input.parse()?;
 		
@@ -179,11 +191,7 @@ impl Parse for Struct {
 impl Parse for EndpointDataType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let rename: Option<LitStr> = if lookahead.peek(syn::token::Bracket) {
-			let content;
-			bracketed!(content in input);
-			Some(content.parse()?)
-		} else { None };
+		let rename = parse_for_rename(input).ok();
 		
 		lookahead = input.lookahead1();
 		return if lookahead.peek(Token![struct]) {

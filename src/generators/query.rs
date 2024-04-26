@@ -11,8 +11,8 @@ pub fn gen_query(
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
-	let query_fields = fields.quote_serialize();
-	let query_builders = fields.quote_builder_fn();
+	let query_fields = fields.quote_serialize(vis);
+	let query_builders = fields.quote_builder_fn(vis);
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string()).build();
