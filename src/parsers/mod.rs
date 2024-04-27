@@ -7,13 +7,13 @@ use syn::{braced, bracketed, LitStr, parenthesized, parse_quote_spanned, Token, 
 use syn::ext::IdentExt;
 use syn::parse::{Lookahead1, Parse, Parser, ParseStream};
 use syn::spanned::Spanned;
-use crate::parsers::attribute::Attribute;
+use crate::parsers::attribute::Attributes;
 use crate::parsers::endpoint::Endpoint;
 use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
 use crate::parsers::rest_enum::{Enum, Enumeration, EnumParameter};
 use crate::parsers::rest_struct::Struct;
-use crate::parsers::tools::{parse_for_rename, parse_struct_name_and_variant};
+use crate::parsers::tools::{parse_struct_name_and_variant};
 
 pub mod endpoint;
 pub mod endpoint_method;
@@ -77,7 +77,8 @@ pub struct RestEndpoints {
 impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let rename = parse_for_rename(input).ok();
+		// let rename = parse_for_rename(input).ok();
+		let attributes = input.parse::<Attributes>()?;
 		
 		let name: Ident = input.parse()?;
 		
@@ -99,7 +100,12 @@ impl Parse for StructParameter {
 			input.parse::<Token![,]>()?;
 		}
 		
-		Ok(StructParameter{ rename, name, ty, optional })
+		Ok(StructParameter{
+			attributes,
+			name,
+			ty,
+			optional
+		})
 	}
 }
 impl Parse for EnumParameter {
@@ -145,25 +151,19 @@ impl Parse for EnumParameter {
 impl Parse for Enumeration {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let rename = if lookahead.peek(syn::token::Bracket) {
-			let rename;
-			bracketed!(rename in input);
-			Some(rename.parse()?)
-		} else { None };
+		let attributes = input.parse::<Attributes>()?;
 		
-		let display: Option<Attribute> = input.parse().ok();
+		let display: Option<Attributes> = input.parse().ok();
 		
 		let ident: Ident = input.parse()?;
 		let param: EnumParameter = input.parse()?;
 		
-		Ok(Enumeration{ rename, display, ident, param })
+		Ok(Enumeration{ attributes, ident, param })
 	}
 }
 impl Parse for Enum {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let name: Ident = input.parse()?;
-		// input.parse::<Token![:]>()?;
-		
 		let mut enums: Vec<Enumeration> = Vec::new();
 		
 		let enumerations;
@@ -172,7 +172,7 @@ impl Parse for Enum {
 			enums.push(enumerations.parse()?);
 		}
 		
-		Ok(Enum{ rename_all: None, name, enums })
+		Ok(Enum{ attributes: Attributes::default(), name, enums })
 	}
 }
 
@@ -187,28 +187,28 @@ impl Parse for Struct {
 			parameters.push(content.parse()?);
 		}
 		
-		Ok(Struct{ rename_all: None, name, rest_variant, parameters })
+		Ok(Struct{ attributes: Attributes::default(), name, rest_variant, parameters })
 	}
 }
 
 impl Parse for EndpointDataType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let rename = parse_for_rename(input).ok();
+		let attributes = input.parse::<Attributes>()?;
 		
 		lookahead = input.lookahead1();
 		return if lookahead.peek(Token![struct]) {
 			input.parse::<Token![struct]>()?;
 			
-			let mut st: Struct = input.parse()?;
-			st.rename_all = rename;
+			let mut st = input.parse::<Struct>()?
+				.with_attributes(attributes);
 			
 			Ok(EndpointDataType::Struct(st))
 		} else if lookahead.peek(Token![enum]) {
 			input.parse::<Token![enum]>()?;
 			
-			let mut en: Enum = input.parse()?;
-			en.rename_all = rename;
+			let mut en = input.parse::<Enum>()?
+				.with_attributes(attributes);
 			Ok(EndpointDataType::Enum(en))
 		} else {
 			Err(syn::Error::new(Span::call_site(), "Failed to find either an Enum nor a Struct"))

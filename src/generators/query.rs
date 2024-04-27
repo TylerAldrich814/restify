@@ -2,12 +2,13 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
+use crate::parsers::attribute::AttributeSlice;
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
 pub fn gen_query(
 	vis        : &Visibility,
-	rename_all : TokenStream2,
+	attributes : AttributeSlice,
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
@@ -20,7 +21,6 @@ pub fn gen_query(
 	let output = quote!{
 		#doc
 		#[derive(std::fmt::Debug, Clone, PartialEq, serde::Serialize)]
-		#rename_all
 		#vis struct #name {
 			#( #query_fields )*
 		}

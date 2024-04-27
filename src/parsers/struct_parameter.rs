@@ -4,6 +4,7 @@ use proc_macro2::Ident;
 use quote::{quote, quote_spanned};
 use syn::{LitStr, Type, Visibility};
 use syn::spanned::Spanned;
+use crate::parsers::attribute::Attributes;
 use crate::utils::doc_str::DocString;
 
 /// # StructParameter:
@@ -20,7 +21,7 @@ use crate::utils::doc_str::DocString;
 ///     corresponding serde attributes, depending on the REST Component Type of the parent
 ///     struct.
 pub struct StructParameter {
-	pub rename: Option<LitStr>,
+	pub attributes: Attributes,
 	pub name: Ident,
 	pub ty: Type,
 	pub optional: bool,
@@ -35,31 +36,35 @@ impl StructParameter {
 		} else {
 			quote!{#kind}
 		};
-		let rename = &self.rename;
-		let output = match rename {
-			Some(serde) => {
-				quote!{
-					#[serde(rename="#serde")]
-					#name: #type_tokens
-				}
-			}
-			None => quote!{ #name: #type_tokens }
-		};
+		// let rename = &self.rename;
+		// let output = match rename {
+		// 	Some(serde) => {
+		// 		quote!{
+		// 			#[serde(rename="#serde")]
+		// 			#name: #type_tokens
+		// 		}
+		// 	}
+		// 	None => quote!{ #name: #type_tokens }
+		// };
+		///TODO: Quote Attribute Needed
+		let output = quote!{};
 		output.into()
 	}
 	pub fn quote_rename(&self) -> TokenStream2 {
-		return if let Some(name) = &self.rename {
-			quote! { #[serde(rename=#name)] }
-		} else {
-			quote! {}
-		};
+		// return if let Some(name) = &self.rename {
+		// 	quote! { #[serde(rename=#name)] }
+		// } else {
+		// 	quote! {}
+		// };
+		quote! {}
 	}
 }
 impl Display for StructParameter {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		if let Some(rename) = &self.rename {
-			write!(f, "#[serde(rename=\"{}\")]\n", rename.value())?;
-		}
+		// TODO: Implement Display for Attributes
+		// if let Some(rename) = &self.rename {
+		// 	write!(f, "#[serde(rename=\"{}\")]\n", rename.value())?;
+		// }
 		write!(f, "{}: ", self.name.to_string())?;
 		let ty = &self.ty;
 		let d_type = quote!{ #ty };
@@ -230,18 +235,18 @@ impl<'s> StructParameterSlice<'s> {
 				struct _AssertSer where #field_type: serde::Serialize + for<'de> serde::Deserialize<'de>;
 			};
 			
-			let rename = &field.quote_rename();
+			// let rename = &field.quote_rename();
 			
 			let output = if field.optional {
+				//TODO: ATTRIBUTES
 				quote! {
-					#rename
 					#[serde(skip_serializing_if="Option::is_none")]
 					#[serde(default)]
 					#vis #field_name: #field_type,
 				}
 			} else {
+				//TODO: ATTRIBUTES
 				quote! {
-					#rename
 					#vis #field_name: #field_type,
 				}
 			};

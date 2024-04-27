@@ -58,20 +58,20 @@ impl fmt::Display for EndpointDataType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
 		match &self {
 			EndpointDataType::Enum(ref e) => {
-				if let Some(rename) = &e.rename_all {
-					let rename = rename.value();
-					write!(f, "#[serde(rename_all=\"{}\")]\n", rename)?;
-				}
+				// if let Some(rename) = &e.rename_all {
+				// 	let rename = rename.value();
+				// 	write!(f, "#[serde(rename_all=\"{}\")]\n", rename)?;
+				// }
 				write!(f, "enum {}: {{\n", e.name.to_string())?;
 				for en in e.enums.iter() {
 					write!(f, "\n{}", en)?;
 				}
 			}
 			EndpointDataType::Struct(ref s) => {
-				if let Some(rename) = &s.rename_all {
-					let rename = rename.value();
-					write!(f, "#[serde(rename_all=\"{}\")]\n", rename)?;
-				}
+				// if let Some(rename) = &s.rename_all {
+				// 	let rename = rename.value();
+				// 	write!(f, "#[serde(rename_all=\"{}\")]\n", rename)?;
+				// }
 				write!(f, "struct {}: {{\n", s.name.to_string())?;
 				for st in s.parameters.iter() {
 					write!(f, "\n{}", st)?;

@@ -35,8 +35,11 @@ fn todos(){}
 
 restify!{
 	[pub DoesVecWork: {
-		PUT "/api/vec/{ids}"  => {
+		PUT "/api/vec/{ids}" => {
 			struct MyIDs<Request> {
+				#[rest_opt]
+				#[number_two]
+				#[number_three]
 				ids: Vec<u64>,
 			}
 		}

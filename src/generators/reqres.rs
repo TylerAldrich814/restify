@@ -1,6 +1,7 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Visibility;
+use crate::parsers::attribute::AttributeSlice;
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -27,7 +28,7 @@ use crate::utils::doc_str::DocString;
 /// facilitating integration into the macro's output.
 pub fn gen_reqres(
 	vis        : &Visibility,
-	rename_all : TokenStream2,
+	attributes : AttributeSlice,
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
@@ -41,7 +42,6 @@ pub fn gen_reqres(
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, Clone, serde::Serialize, serde::Deserialize)]
-		#rename_all
 		#vis struct #name {
 			#( #reqres_fields )*
 		}

@@ -2,6 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
+use crate::parsers::attribute::AttributeSlice;
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 /// Constructs a request struct as part of the `restify!` macro.
@@ -35,7 +36,7 @@ use crate::utils::doc_str::DocString;
 /// ready to be included in the output of a procedural macro.fn gen_request(
 pub fn gen_request(
 	vis        : &Visibility,
-	rename_all : TokenStream2,
+	attributes : AttributeSlice,
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
@@ -49,7 +50,6 @@ pub fn gen_request(
 	let output = quote! {
 		#[doc = "Request Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
-		#rename_all
 		#vis struct #name {
 			#( #request_fields )*
 		}

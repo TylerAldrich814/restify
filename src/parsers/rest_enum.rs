@@ -6,14 +6,20 @@ use quote::quote;
 use syn::{braced, bracketed, LitStr, Token, Type};
 use syn::parse::{Parse, ParseStream};
 use proc_macro2::TokenStream as TokenStream2;
-use crate::parsers::attribute::Attribute;
+use crate::parsers::attribute::{Attribute, Attributes};
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 
 pub struct Enum {
-	pub rename_all: Option<LitStr>,
+	pub attributes: Attributes,
 	pub name: Ident,
 	pub enums: Vec<Enumeration>,
+}
+impl Enum {
+	pub fn with_attributes(mut self, attributes: Attributes) -> Self {
+		self.attributes = attributes;
+		return self;
+	}
 }
 
 pub enum EnumParameter {
@@ -27,17 +33,14 @@ pub enum EnumParameter {
 
 
 pub struct Enumeration {
-	pub rename  : Option<LitStr>,
-	pub display : Option<Attribute>,
-	pub ident   : Ident,
-	pub param   : EnumParameter,
+	pub attributes : Attributes,
+	pub ident      : Ident,
+	pub param      : EnumParameter,
 }
 
 impl fmt::Display for Enumeration {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		if let Some(rename) = &self.rename {
-			write!(f, "#[serde(rename=\"{}\")]\n", rename.value())?;
-		}
+		write!(f, "{}", self.attributes)?;
 		write!(f, "{}", self.ident.to_string())?;
 		
 		match &self.param {
@@ -94,14 +97,16 @@ impl<'s> EnumsSlice<'s> {
 	}
 	pub fn quote_fields(&self) -> Vec<TokenStream2> {
 		return self.iter().map(|enumeration| {
-			let Enumeration { rename, display, ident, param } = enumeration;
-			let rename = if let Some(name) = rename {
-				quote!{#[serde(rename=#name)]}
-			} else { quote!{} };
+			let Enumeration { attributes, ident, param } = enumeration;
+			
+			// let rename = if let Some(name) = rename {
+			// 	quote!{#[serde(rename=#name)]}
+			// } else { quote!{} };
+			
+			//TODO: Implement quote_attributes -> Include in all quotes
 			match param {
 				EnumParameter::Variant => {
 					let output = quote!{
-						#rename
 						#ident,
 					};
 					output.into()
@@ -109,12 +114,10 @@ impl<'s> EnumsSlice<'s> {
 				EnumParameter::Tuple {ty, opt} => {
 					let output = if *opt {
 						quote!{
-							#rename
 							#ident(Option<#ty>),
 						}
 					} else {
 						quote!{
-							#rename
 							#ident(#ty),
 						}};
 					output.into()
@@ -123,7 +126,6 @@ impl<'s> EnumsSlice<'s> {
 					let slice: StructParameterSlice = st.into();
 					let params = slice.quote_enum_struct_params();
 					let output = quote!{
-						#rename
 						#ident {
 							#( #params )*
 						},

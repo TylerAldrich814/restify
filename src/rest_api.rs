@@ -34,17 +34,22 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 				match endpoint_dt {
 					EndpointDataType::Enum(en) => {
 						let Enum {
-							rename_all,
+							attributes,
 							name,
 							enums,
 						} = en;
 						enum_names.push(name.clone());
 						
-						gen_enum_components(vis, rename_all, name, enums.into())
+						gen_enum_components(
+							vis,
+							attributes.into(),
+							name,
+							enums.into()
+						)
 					},
 					EndpointDataType::Struct(st) => {
 						let Struct {
-							rename_all,
+							attributes,
 							name,
 							rest_variant,
 							parameters
@@ -58,7 +63,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 						
 						gen_component_struct(
 							vis,
-							rename_all,
+							attributes.into(),
 							name,
 							rest_variant,
 							&struct_name,
