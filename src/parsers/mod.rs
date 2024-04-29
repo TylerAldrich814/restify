@@ -77,7 +77,6 @@ pub struct RestEndpoints {
 impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		// let rename = parse_for_rename(input).ok();
 		let attributes = input.parse::<Attributes>()?;
 		
 		let name: Ident = input.parse()?;
@@ -172,7 +171,7 @@ impl Parse for Enum {
 			enums.push(enumerations.parse()?);
 		}
 		
-		Ok(Enum{ attributes: Attributes::default(), name, enums })
+		Ok(Enum{ attributes: Attributes(vec![]), name, enums })
 	}
 }
 
@@ -187,7 +186,7 @@ impl Parse for Struct {
 			parameters.push(content.parse()?);
 		}
 		
-		Ok(Struct{ attributes: Attributes::default(), name, rest_variant, parameters })
+		Ok(Struct{ attributes: Attributes(vec![]), name, rest_variant, parameters })
 	}
 }
 

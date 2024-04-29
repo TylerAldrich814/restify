@@ -42,6 +42,7 @@ pub fn gen_request(
 ) -> TokenStream2 {
 	let request_fields = fields.quote_serialize(vis);
 	let request_builders = fields.quote_builder_fn(vis);
+	let attributes = attributes.quote_attributes();
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
@@ -50,6 +51,7 @@ pub fn gen_request(
 	let output = quote! {
 		#[doc = "Request Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
+		#( #attributes )*
 		#vis struct #name {
 			#( #request_fields )*
 		}

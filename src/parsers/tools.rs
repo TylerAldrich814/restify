@@ -1,8 +1,44 @@
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use syn::{bracketed, LitStr, Token};
-use syn::parse::ParseStream;
+use syn::parse::{Lookahead1, Parse, ParseBuffer, ParseStream, Peek};
 use crate::parsers::{VALID_REST_COMPONENT, valid_rest_component};
+
+pub struct Lookahead<'p> {
+	pub peeker: Lookahead1<'p>,
+	buffer: &'p ParseBuffer<'p>,
+}
+impl<'p> Lookahead<'p> {
+	pub fn new(input: &'p ParseBuffer) -> Self {
+		Lookahead {
+			peeker: input.lookahead1(),
+			buffer: input,
+		}
+	}
+	pub fn new_buffer(&mut self, input: &'p ParseBuffer) {
+		self.buffer = input;
+		self.shift();
+	}
+	pub fn shift(&mut self) {
+		self.peeker = self.buffer.lookahead1();
+	}
+	pub fn peek<T: Peek>(&self, token: T) -> bool {
+		self.peeker.peek(token)
+	}
+	
+	pub fn new_buffer_and_peek<T: Peek>(&mut self, buffer: &'p ParseBuffer, token: T) -> bool {
+		self.buffer = buffer;
+		self.shift_and_peek(token)
+	}
+	pub fn shift_and_peek<T: Peek>(&mut self, token: T) -> bool {
+		self.shift();
+		self.peek(token)
+	}
+}
+
+pub fn syn_err(error: &str) -> syn::Error {
+	syn::Error::new(Span::call_site(), error)
+}
 
 /// Parses for an optional 'rename' Token field
 ///    - Returns Ok(LitStr) if `["SomeLitStr"]` is next within the provided

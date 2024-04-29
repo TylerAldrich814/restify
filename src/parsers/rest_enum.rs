@@ -6,7 +6,7 @@ use quote::quote;
 use syn::{braced, bracketed, LitStr, Token, Type};
 use syn::parse::{Parse, ParseStream};
 use proc_macro2::TokenStream as TokenStream2;
-use crate::parsers::attribute::{Attribute, Attributes};
+use crate::parsers::attribute::{Attribute, Attributes, AttributeSlice};
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 
@@ -98,15 +98,13 @@ impl<'s> EnumsSlice<'s> {
 	pub fn quote_fields(&self) -> Vec<TokenStream2> {
 		return self.iter().map(|enumeration| {
 			let Enumeration { attributes, ident, param } = enumeration;
-			
-			// let rename = if let Some(name) = rename {
-			// 	quote!{#[serde(rename=#name)]}
-			// } else { quote!{} };
+			let attributes = attributes.iter().quote_attributes();
 			
 			//TODO: Implement quote_attributes -> Include in all quotes
 			match param {
 				EnumParameter::Variant => {
 					let output = quote!{
+						#( #attributes )*
 						#ident,
 					};
 					output.into()
@@ -114,6 +112,7 @@ impl<'s> EnumsSlice<'s> {
 				EnumParameter::Tuple {ty, opt} => {
 					let output = if *opt {
 						quote!{
+						#( #attributes )*
 							#ident(Option<#ty>),
 						}
 					} else {
@@ -125,6 +124,7 @@ impl<'s> EnumsSlice<'s> {
 				EnumParameter::Struct(st) => {
 					let slice: StructParameterSlice = st.into();
 					let params = slice.quote_enum_struct_params();
+					
 					let output = quote!{
 						#ident {
 							#( #params )*

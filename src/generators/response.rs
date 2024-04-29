@@ -35,6 +35,7 @@ pub fn gen_response(
 ) -> TokenStream2 {
 	let response_fields = fields.quote_deserialize(vis);
 	let response_builders = fields.quote_builder_fn(vis);
+	let attributes = attributes.quote_attributes();
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
@@ -43,6 +44,7 @@ pub fn gen_response(
 	let output = quote! {
 		#[doc = "Response Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Deserialize)]
+		#( #attributes )*
 		#vis struct #name {
 			#( #response_fields )*
 		}

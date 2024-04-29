@@ -26,13 +26,12 @@ pub fn gen_enum_components(
 	name       : &Ident,
 	enums      : EnumsSlice,
 ) -> TokenStream2 {
-	// let rename = match rename_all {
-	// 	Some(rename) => quote!{#[serde(rename_all=#rename)]},
-	// 	None => quote!{},
-	// };
 	let enum_fields = enums.quote_fields();
+	let attributes = attributes.quote_attributes();
+	
 	let output = quote! {
 		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
+		#( #attributes )*
 		#vis enum #name {
 			#( #enum_fields )*
 		}
@@ -49,7 +48,6 @@ pub fn gen_component_struct(
 	block       : StructParameterSlice,
 ) -> TokenStream2 {
 	let name = Ident::new(struct_name, Span::call_site());
-	// let rename = quote_rename(rename_all, true);
 	
 	let test_var = if let Some(variant) = variant {
 		variant

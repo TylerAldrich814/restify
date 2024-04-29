@@ -36,11 +36,24 @@ fn todos(){}
 restify!{
 	[pub DoesVecWork: {
 		PUT "/api/vec/{ids}" => {
+			#[rename_all="RenameAll"]
 			struct MyIDs<Request> {
-				#[rest_opt]
-				#[number_two]
-				#[number_three]
+				#[rename="Rename"]
 				ids: Vec<u64>,
+			}
+			enum MyEnum {
+				#[rename="VARIANT"]
+				Variant,
+				#[rename="TUPLE"]
+				Tuple(String)
+				Struct {
+					#[rename="ONE"]
+					one: String,
+					#[rename="TWO"]
+					two: ?String,
+					#[rename="THREE"]
+					three: ?String,
+				}
 			}
 		}
 	}]

@@ -36,6 +36,8 @@ pub fn gen_header(
 ) -> TokenStream2 {
 	let header_fields = fields.quote_serialize(vis);
 	let header_builders = fields.quote_builder_fn(vis);
+	let attributes = attributes.quote_attributes();
+	
 	let mut doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
@@ -43,6 +45,7 @@ pub fn gen_header(
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
+		#( #attributes )*
 		#vis struct #name {
 			#( #header_fields )*
 		}

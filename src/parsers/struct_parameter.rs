@@ -150,6 +150,7 @@ impl<'s> StructParameterSlice<'s> {
 	/// ```
 	pub fn quote_serialize(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.iter().map(|field| {
+			let attr = &field.attributes.iter().quote_attributes();
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -157,28 +158,17 @@ impl<'s> StructParameterSlice<'s> {
 				struct _AssertSer where #field_type: serde::Serialize;
 			};
 			
-			// let rename = {
-			// 	if let Some(rename) = &field.rename {
-			// 		let rename = LitStr::new(
-			// 			&format!("{}", &rename.to_string()),
-			// 			Span::call_site()
-			// 		);
-			// 		quote! { #[serde(rename=#rename)] }
-			// 	} else {
-			// 		quote! {}
-			// 	}
-			// };
-			let rename = &field.quote_rename();
+			// let rename = &field.quote_rename();
 			
 			let output = if field.optional {
 				quote! {
-					#rename
+					#( #attr )*
 					#[serde(skip_serializing_if="Option::is_none")]
 					#vis #field_name: Option<#field_type>,
 				}
 			} else {
 				quote! {
-					#rename
+					#( #attr )*
 					#vis #field_name: #field_type,
 				}
 			};
@@ -201,6 +191,7 @@ impl<'s> StructParameterSlice<'s> {
 	/// ```
 	pub fn quote_deserialize(&self, vis: &Visibility) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
+			let attr = &field.attributes.iter().quote_attributes();
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -208,16 +199,15 @@ impl<'s> StructParameterSlice<'s> {
 				struct _AssertSer where #field_type: for<'de> serde::Deserialize<'de>;
 			};
 			
-			let rename = &field.quote_rename();
 			let output = if field.optional {
 				quote! {
-					#rename
+					#( #attr )*
 					#[serde(default)]
 					#vis #field_name: #field_type,
 				}
 			} else {
 				quote! {
-					#rename
+					#( #attr )*
 					#vis #field_name: #field_type,
 				}
 			};
@@ -227,6 +217,7 @@ impl<'s> StructParameterSlice<'s> {
 	/// # StructParameter: Deserialize & Serialize
 	pub fn quote_full_serde(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.slice.iter().map(|field| {
+			let attr = &field.attributes.iter().quote_attributes();
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -238,8 +229,8 @@ impl<'s> StructParameterSlice<'s> {
 			// let rename = &field.quote_rename();
 			
 			let output = if field.optional {
-				//TODO: ATTRIBUTES
 				quote! {
+					#( #attr )*
 					#[serde(skip_serializing_if="Option::is_none")]
 					#[serde(default)]
 					#vis #field_name: #field_type,
@@ -247,6 +238,7 @@ impl<'s> StructParameterSlice<'s> {
 			} else {
 				//TODO: ATTRIBUTES
 				quote! {
+					#( #attr )*
 					#vis #field_name: #field_type,
 				}
 			};
@@ -295,19 +287,25 @@ impl<'s> StructParameterSlice<'s> {
 	
 	pub fn quote_enum_struct_params(&self) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
+			let attr = &field.attributes.iter().quote_attributes();
 			let name = &field.name;
 			let ty = &field.ty;
 			let opt = field.optional;
-			let rename = &field.quote_rename();
 			
 			let p_type = if opt {
-				quote!{ Option<#ty> }
+				quote!{
+					Option<#ty>
+				}
 			} else {
-				quote!{ #ty }
+				quote!{
+					#ty
+				}
 			};
 			
 			let output = quote!{
-				#rename
+				#( #attr )*
+				#[serde(default)]
+				#[serde(skip_serializing_if="Option::is_none")]
 				#name: #p_type,
 			};
 			output.into()
