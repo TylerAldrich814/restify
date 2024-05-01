@@ -41,6 +41,7 @@ restify!{
 				#[rename="Rename"]
 				ids: Vec<u64>,
 			}
+			#[derive(PartialEq)]
 			enum MyEnum {
 				#[rename="VARIANT"]
 				Variant,
@@ -95,5 +96,4 @@ restify!{
 
 
 fn main(){
-	println!("");
 }

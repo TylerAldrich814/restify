@@ -7,44 +7,80 @@ use proc_macro2::{Ident, Span};
 use quote::{quote, quote_spanned};
 use syn::{bracketed, LitStr, parenthesized, Token, Type};
 use syn::parse::{Parse, ParseBuffer, ParseStream};
+use syn::parse::discouraged::AnyDelimiter;
 use syn::spanned::Spanned;
 use syn::token::Token;
 use crate::parsers::tools::{Lookahead, syn_err};
 
 
 /// # Attribute Commands:
-/// Attributes come in different varieties.
-/// Attributes simply tell restify's code generator either what to include with the
-/// final product, or 'how' it should generate the code.
+/// Restify's Attribute syntax is almost identical towards Rust's Attribute Syntax.
+/// Attributes can be included with either Type Definitions(struct, enum) or with any type parameter
+/// within a Type Definition.
+/// Some attributes will cause the Restify Generator to include extra information.
+/// While others will simply guide Restify's generator by telling it what to produce and how to produce it.
 ///
-/// # Attribute Examples:
-///   - [Option]<[LitStr]> RestOpt: Command that will tell restify that the following parameter
-///     is optional when it comes to either REST Requests or Responses.
-///     Note, restify will use Attribute::RestOpt differently for either response or request structs.
-///     For responses, you'd want to include a default backup for RestOpt, or leave it blank if the
-///     response parameter implements Default.
-///     For request, the value you place in RestOpt should be a valid function that returns a boolean,
-///     i.e., logic that determines if the parameter should be serialized.
-///     RestOpt was created for situations where you don't want your parameter to be an Option<T>.
-///     When you make a restify parameter Optional via the '?' syntax.
-///     Restify will automatically add the same serde attributes that RestOpt would if you used
-///     `#[rest_opt=Option::is_none]` or `#[rest_opt="default"]`
-///  - [LitStr] Rename - Used for Struct or Enum parameters.
+///
+/// # Attribute Variants:
+///  - [LitStr] **rename** - Used for Struct or Enum parameters.
 ///    Tells Restify to include `#[serde(rename={LitStr})]` for the parameter you've attached it to.
-///  - [LitStr] RenameAll - Used for Struct or Enum definitions.
+///     - **Example**: ``` #[rename="MyParameter"] ```
+///  - [LitStr] **RenameAll** - Used for Type Definitions.
 ///    Tells Restify to include `#[serde(rename_all={LitStr})]` for the struct/enum you've attached it to.
+///     - **Example**: ``` #[rename="CAPITAL_SNAKE_CASE"] ```
+///
+///  - **Builder**: Adding an Attribute::Builder attribute as a Type definition Attribute, will cause the Restify
+///    generator to generate builder methods for that Struct/Enum.
+///     - **Example**: ``` #[builder] ```
+///
+///  - [LitStr] **SkipIf**: This attribute allows you to include a custom method for
+///    Serde's `Skip Serializing Field` Attribute.
+///     - By default, when the parameter of a serializable
+///       REST Variant is made optional via Restify's Optional syntax, i.e., `my_optional_type: ?MyType`.
+///       The Restify code generator will automatically include Serde's Skip Serialization field using
+///       `Option::is_none` as the method.
+///     - **Example**: ``` #[skip_if] ```
+///     - **Example**: ``` #[skip_if="MyType::func_that_returns_bool"] ```
+///  - [Option]<[LitStr]> **Default**: This attribute allows you to include a custom method for
+///    Serde's `Default` Attribute.
+///     - By default, for Types that are associated with a Deserializable REST Variant. Whenever a parameter
+///       is marked Optional via Restify's Optional Syntax, i.e., `my_optional_type: ?MyType` -
+///       The Restify Generator will automatically include the default serde attribute.
+///     - When ```#[default]``` is used on a non-optional type, Restify will test if the parameter's
+///       value implements Rust's Default trait. Panicking if it does not.
+///     - When a method is included with Default, i.e., ```#[default=default_value]```, then no type
+///       checks are performed. It will be up to the user to make sure that whatever method that is included
+///       will be visible to the generated code that Restify will output.
+///  - [Vec]<[Ident]> **Derive**: Lets the user add specific Derive Macro Identifiers for their Type Definitions.
+///       * Note, During Code generation, Restify automatically includes a variety of Derive Macro Identifiers
+///         by default; Which included Derive macros will depend on the associated REST Variant for each type.
 pub enum Attribute {
-	//TODO: Not sure how to engineer RestOpt since I'm making Serialization and Deserialization both
-	//      dynamic for whichever REST Component that's used for the struct.
-	// RestOpt(Option<LitStr>),
 	Rename(LitStr),
 	RenameAll(LitStr),
+	Builder,
+	SkipIf(LitStr),
+	Default(Option<LitStr>),
+	Derive(Vec<Ident>),
 }
 impl Attribute {
 	fn quote_attribute(&self) -> TokenStream2 {
 		match self {
-			Attribute::Rename(name) => quote!(#[serde(rename = #name)]).into(),
-			Attribute::RenameAll(pattern) => quote!(#[serde(rename_all = #pattern)]).into(),
+			Attribute::Rename(name)
+				=> quote!(#[serde(rename = #name)]).into(),
+			Attribute::RenameAll(pattern)
+				=> quote!(#[serde(rename_all = #pattern)]).into(),
+			Attribute::Builder
+				=> quote!{},
+			Attribute::SkipIf(opt)
+				=> quote!{#[serde(skip_serializing_if = #opt)]},
+			Attribute::Default(Some(opt))
+				=> quote!{#[serde(default = #opt)]},
+			Attribute::Default(_)
+				=> quote!{#[serde(default)]},
+			Attribute::Derive(empty) if empty.is_empty()
+				=> quote!(),
+			Attribute::Derive(idents)
+				=> quote!{#[derive( #( #idents, )* )]}
 		}
 	}
 }
@@ -81,23 +117,6 @@ impl Parse for Attribute {
 		bracketed!(attribute in input);
 		
 		return match attribute.parse::<Ident>()?.to_string().as_str() {
-			// "rest_opt" => {
-			// 	lookahead.new_buffer(&attribute);
-			// 	if attribute.is_empty() {
-			// 		return Ok(Attribute::RestOpt(None));
-			// 	}
-			// 	if !lookahead.shift_and_peek(syn::token::Paren) {
-			// 		return Err(syn_err("The RestOpt Attribute Command can either contain a parenthesized Literal String, or not value."));
-			// 	}
-			// 	let input;
-			// 	parenthesized!(input in attribute);
-			//
-			// 	if !lookahead.new_buffer_and_peek(&input, LitStr) {
-			// 		return Err(syn_err("The RestOpt Attribute Command, when parenthesis are found, must contain a Literal String as it's value"));
-			// 	}
-			//
-			// 	Ok(Attribute::RestOpt(Some(input.parse()?)))
-			// }
 			"rename" => {
 				if !lookahead.new_buffer_and_peek(&attribute, Token![=]) {
 					return Err(syn_err("The Rename Attribute Command must be proceeded by a '=' Token."));
@@ -118,9 +137,57 @@ impl Parse for Attribute {
 				}
 				Ok(Attribute::RenameAll(attribute.parse()?))
 			}
-			_ => {
-				Err(syn::Error::new(Span::call_site(), "Unknown Identifier found within attribute"))
+			"skip_if" => {
+				if !lookahead.new_buffer_and_peek(&attribute, Token![=]) {
+					return Err(syn_err("Attribute::SkipIf: If a command is added to SkipIf, then it must be proceeded by an '='"));
+				}
+				attribute.parse::<Token![=]>()?;
+				if !lookahead.shift_and_peek(LitStr) {
+					return Err(syn_err("Attribute::SkipIf: Any provided command to SkipIf must be a Literal String"));
+				}
+				return Ok(Attribute::SkipIf(attribute.parse()?));
 			}
+			"default" => {
+				if attribute.is_empty() {
+					return Ok(Attribute::Default(None));
+				}
+				if !lookahead.new_buffer_and_peek(&attribute, Token![=]) {
+					return Err(syn_err("Attribute::Default: If a command is added to Default, then it must be proceeded by an '='"));
+				}
+				attribute.parse::<Token![=]>()?;
+				if !lookahead.shift_and_peek(LitStr) {
+					return Err(syn_err("Attribute::Default: Any provided command to Default must be a Literal String"));
+				}
+				return Ok(Attribute::Default(attribute.parse().ok()));
+			}
+			"derive" => {
+				if attribute.is_empty() {
+					return Err(syn_err("Attribute::Derive requires additional Identifiers"))
+				}
+				if !lookahead.new_buffer_and_peek(&attribute, syn::token::Paren) {
+					return Err(syn_err("Attribute::Derive Identifiers should be placed within parenthesis"));
+				}
+				let content;
+				parenthesized!(content in attribute);
+				let mut derives = vec![];
+				
+				loop {
+					match content.parse::<Ident>() {
+						Err(syn) => return Err(syn),
+						Ok(derive) => derives.push(derive)
+					}
+					if content.is_empty(){ break; }
+					
+					if !lookahead.new_buffer_and_peek(&content, Token![,]) {
+						return Err(syn_err("Attribute::Derive - Parenthesized items should be a comma-delimited list of Macro Identifiers"));
+					}
+					content.parse::<Token![,]>()?;
+				}
+				
+				return Ok(Attribute::Derive(derives));
+			}
+			"builder" => Ok(Attribute::Builder),
+			unknown => Err(syn_err(&format!("Attribute: Unknown Identifier found: \"{}\"", unknown))),
 		};
 	}
 }
@@ -132,14 +199,6 @@ impl Parse for Attributes {
 		}
 		return Ok(attributes);
 	}
-}
-
-pub enum RestDataType {
-	Header,
-	Query,
-	Response,
-	Request,
-	ReqRes,
 }
 
 #[derive(Debug)]
