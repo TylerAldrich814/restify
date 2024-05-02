@@ -7,9 +7,20 @@ use crate::parsers::tools::{Lookahead, SynExtent};
 
 type SynError = syn::Error;
 
-pub trait Attribute {
+/// # Attribute Trait:
+/// Bounded to [Parse], used for Implementing Rust Types to be used with [Attributes]
+/// At this time, [Attribute] has one trait method.
+///
+/// ```ignore
+/// fn quote(&self) -> proc_macro2::TokenStream
+/// ```
+///
+/// This method is used during the code generation stage
+/// (If the Attribute is meant for code generation)
+pub trait Attribute: Parse {
 	fn quote(&self) -> TokenStream2;
 }
+
 impl Attribute for TypeAttribute {
 	fn quote(&self) -> TokenStream2 {
 		return match self {

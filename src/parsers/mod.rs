@@ -20,7 +20,6 @@ pub mod endpoint_method;
 pub mod rest_struct;
 pub mod struct_parameter;
 pub mod rest_enum;
-pub mod attribute;
 mod tools;
 pub mod attributes;
 
