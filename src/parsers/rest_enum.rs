@@ -6,17 +6,17 @@ use quote::quote;
 use syn::{braced, bracketed, LitStr, Token, Type};
 use syn::parse::{Parse, ParseStream};
 use proc_macro2::TokenStream as TokenStream2;
-use crate::parsers::attribute::{Attribute, Attributes, AttributeSlice};
+use crate::parsers::attributes::{Attribute, Attributes, AttributeSlice, ParamAttribute, TypeAttribute};
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 
 pub struct Enum {
-	pub attributes: Attributes,
+	pub attributes: Attributes<TypeAttribute>,
 	pub name: Ident,
 	pub enums: Vec<Enumeration>,
 }
 impl Enum {
-	pub fn with_attributes(mut self, attributes: Attributes) -> Self {
+	pub fn with_attributes(mut self, attributes: Attributes<TypeAttribute>) -> Self {
 		self.attributes = attributes;
 		return self;
 	}
@@ -33,14 +33,14 @@ pub enum EnumParameter {
 
 
 pub struct Enumeration {
-	pub attributes : Attributes,
+	pub attributes : Attributes<ParamAttribute>,
 	pub ident      : Ident,
 	pub param      : EnumParameter,
 }
 
 impl fmt::Display for Enumeration {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		write!(f, "{}", self.attributes)?;
+		// write!(f, "{}", self.attributes)?;
 		write!(f, "{}", self.ident.to_string())?;
 		
 		match &self.param {

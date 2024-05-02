@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attribute::{Attribute, AttributeSlice};
+use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -29,7 +29,7 @@ use crate::utils::doc_str::DocString;
 /// can be integrated directly into procedural macro output
 pub fn gen_response(
 	vis        : &Visibility,
-	attributes : AttributeSlice,
+	attributes : AttributeSlice<TypeAttribute>,
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {

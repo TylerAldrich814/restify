@@ -16,22 +16,21 @@ use request::gen_request;
 use response::gen_response;
 use reqres::gen_reqres;
 use crate::generators::tools::quote_rename;
-use crate::parsers::attribute::{Attributes, AttributeSlice};
+use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
 use crate::parsers::rest_enum::EnumsSlice;
 
 /// Generates a Rust Enum based on the provided parameters.
 pub fn gen_enum_components(
 	vis        : &Visibility,
-	attributes : AttributeSlice,
+	attributes : AttributeSlice<TypeAttribute>,
 	name       : &Ident,
 	enums      : EnumsSlice,
 ) -> TokenStream2 {
 	let enum_fields = enums.quote_fields();
-	let attributes = attributes.quote_attributes();
-	
+	// let attributes = attributes.quote_attributes();
+	// #( #attributes )*
 	let output = quote! {
 		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
-		#( #attributes )*
 		#vis enum #name {
 			#( #enum_fields )*
 		}
@@ -41,7 +40,7 @@ pub fn gen_enum_components(
 
 pub fn gen_component_struct(
 	vis         : &Visibility,
-	attributes  : AttributeSlice,
+	attributes  : AttributeSlice<TypeAttribute>,
 	ident       : &Ident,
 	variant     : &Option<Ident>,
 	struct_name : &str,

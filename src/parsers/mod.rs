@@ -7,7 +7,7 @@ use syn::{braced, bracketed, LitStr, parenthesized, parse_quote_spanned, Token, 
 use syn::ext::IdentExt;
 use syn::parse::{Lookahead1, Parse, Parser, ParseStream};
 use syn::spanned::Spanned;
-use crate::parsers::attribute::Attributes;
+use crate::parsers::attributes::{Attributes, ParamAttribute, TypeAttribute};
 use crate::parsers::endpoint::Endpoint;
 use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
@@ -22,6 +22,7 @@ pub mod struct_parameter;
 pub mod rest_enum;
 pub mod attribute;
 mod tools;
+pub mod attributes;
 
 pub static VALID_METHODS: &[&str] = &[
 	"GET",
@@ -77,7 +78,7 @@ pub struct RestEndpoints {
 impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let attributes = input.parse::<Attributes>()?;
+		let attributes = input.parse::<Attributes<ParamAttribute>>()?;
 		
 		let name: Ident = input.parse()?;
 		
@@ -150,9 +151,9 @@ impl Parse for EnumParameter {
 impl Parse for Enumeration {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let attributes = input.parse::<Attributes>()?;
+		let attributes = input.parse::<Attributes<ParamAttribute>>()?;
 		
-		let display: Option<Attributes> = input.parse().ok();
+		// let display: Option<Attributes<>> = input.parse().ok();
 		
 		let ident: Ident = input.parse()?;
 		let param: EnumParameter = input.parse()?;
@@ -193,7 +194,7 @@ impl Parse for Struct {
 impl Parse for EndpointDataType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = input.lookahead1();
-		let attributes = input.parse::<Attributes>()?;
+		let attributes = input.parse::<Attributes<TypeAttribute>>()?;
 		
 		lookahead = input.lookahead1();
 		return if lookahead.peek(Token![struct]) {

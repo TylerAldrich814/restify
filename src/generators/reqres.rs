@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attribute::AttributeSlice;
+use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -28,13 +28,14 @@ use crate::utils::doc_str::DocString;
 /// facilitating integration into the macro's output.
 pub fn gen_reqres(
 	vis        : &Visibility,
-	attributes : AttributeSlice,
+	attributes : AttributeSlice<TypeAttribute>,
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
 	//TODO: Create a query_ser_der or some shit since reqres will implement both.
 	let reqres_fields = fields.quote_serialize(vis);
 	let reqres_builders = fields.quote_builder_fn(vis);
+	
 	let attributes = attributes.quote_attributes();
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))

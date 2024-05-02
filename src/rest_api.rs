@@ -9,7 +9,7 @@ use crate::parsers::rest_enum::{Enum, EnumsSlice};
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::RestEndpoints;
 use crate::parsers::struct_parameter::{StructParameterSlice};
-use crate::utils::{create_struct_name};
+use crate::utils::{create_type_identifier};
 use crate::utils::doc_str::DocString;
 use crate::utils::fmt::{rust_fmt_quotes};
 
@@ -42,7 +42,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 						
 						gen_enum_components(
 							vis,
-							attributes.into(),
+							attributes.iter(),
 							name,
 							enums.into()
 						)
@@ -55,7 +55,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 							parameters
 						} = st;
 						
-						let struct_name = create_struct_name(&[
+						let struct_name = create_type_identifier(&[
 							method_name.to_string().as_str(),
 							name.to_string().as_str()
 						]);
@@ -63,7 +63,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 						
 						gen_component_struct(
 							vis,
-							attributes.into(),
+							attributes.iter(),
 							name,
 							rest_variant,
 							&struct_name,
@@ -75,7 +75,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 			
 			rust_fmt_quotes(&method_name.to_string(), &data_objects);
 			
-			let rest_method_struct_name = create_struct_name(&[""]);
+			let rest_method_struct_name = create_type_identifier(&[""]);
 			
 			let output = quote!{
 				#vis struct #

@@ -97,14 +97,15 @@ pub fn print_n_flush(output: &str) {
 	std::io::stdout().flush().unwrap();
 }
 
-/// Takes a slice of string slices.
+/// # Struct/Enum Identifier Creation
+/// Takes a String from string slices.
 /// Concatenates them into a single
 /// string where the First Character of each string slice is Capitalized.
 /// And Thus following Rust's Syntax rules
 ///
 /// # Example:
 /// * &["my", "struct", "name"] => "MyStructName
-pub fn create_struct_name(words: &[&str]) -> String {
+pub fn create_type_identifier(words: &[&str]) -> String {
 	let mut struct_name = String::new();
 	
 	for word in words {

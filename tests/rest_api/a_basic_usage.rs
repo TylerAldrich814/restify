@@ -41,7 +41,11 @@ restify!{
 				#[rename="Rename"]
 				ids: Vec<u64>,
 			}
-			#[derive(PartialEq)]
+			#[derive(Clone)]
+			enum MyLittleEnum {
+				Little,
+			}
+			#[derive(Eq, PartialEq, Clone, Ord, PartialOrd)]
 			enum MyEnum {
 				#[rename="VARIANT"]
 				Variant,

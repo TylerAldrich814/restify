@@ -2,7 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attribute::AttributeSlice;
+use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -30,7 +30,7 @@ use crate::utils::doc_str::DocString;
 /// ready for inclusion in the macro output.
 pub fn gen_header(
 	vis        : &Visibility,
-	attributes : AttributeSlice,
+	attributes : AttributeSlice<TypeAttribute>,
 	name       : &Ident,
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {

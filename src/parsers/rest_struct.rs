@@ -1,6 +1,6 @@
 use proc_macro2::Ident;
 use syn::LitStr;
-use crate::parsers::attribute::{Attribute, Attributes};
+use crate::parsers::attributes::{Attribute, Attributes, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameter;
 
 /// # Struct:
@@ -17,14 +17,17 @@ use crate::parsers::struct_parameter::StructParameter;
 ///   - [Vec]<[StructParameter]> parameters: A SubStructure for 'Struct' which will contain
 ///     all the parsed struct parameters extracted from `restify`s original TokenStream.
 pub struct Struct {
-	// pub rename_all: Option<LitStr>,
-	pub attributes: Attributes,
+	//TODO: Lifetime Parsing.
+	// From syn's Documentation
+	// | The empty string is not an identifier. Use Option<Ident>.
+	// | A lifetime is not an identifier. Use syn::Lifetime instead.
+	pub attributes: Attributes<TypeAttribute>,
 	pub name: Ident,
 	pub rest_variant: Option<Ident>,
 	pub parameters: Vec<StructParameter>,
 }
 impl Struct {
-	pub fn with_attributes(mut self, attributes: Attributes) -> Self {
+	pub fn with_attributes(mut self, attributes: Attributes<TypeAttribute>) -> Self {
 		self.attributes = attributes;
 		return self;
 	}

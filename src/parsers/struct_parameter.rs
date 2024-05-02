@@ -4,7 +4,7 @@ use proc_macro2::Ident;
 use quote::{quote, quote_spanned};
 use syn::{LitStr, Type, Visibility};
 use syn::spanned::Spanned;
-use crate::parsers::attribute::Attributes;
+use crate::parsers::attributes::{Attributes, ParamAttribute};
 use crate::utils::doc_str::DocString;
 
 /// # StructParameter:
@@ -21,7 +21,7 @@ use crate::utils::doc_str::DocString;
 ///     corresponding serde attributes, depending on the REST Component Type of the parent
 ///     struct.
 pub struct StructParameter {
-	pub attributes: Attributes,
+	pub attributes: Attributes<ParamAttribute>,
 	pub name: Ident,
 	pub ty: Type,
 	pub optional: bool,

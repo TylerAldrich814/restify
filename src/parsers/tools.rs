@@ -95,3 +95,54 @@ pub fn parse_struct_name_and_variant(
 	}
 	Ok((name, variant))
 }
+
+
+
+
+//TODO
+// core::result impl<T, E> Result<T, E>
+// pub fn and_then<U, F: FnOnce(T) -> Result<U, E>>(self, op: F) -> Result<U, E>
+// type SynResult<T> = syn::Result<T>;
+
+
+// // pub struct SynResult<P>(syn::Result<P>);
+// pub enum SynResult<P, E> {
+// 	Ok(P),
+// 	Err(E)
+// }
+// impl<P> SynResult<P> {
+// 	pub fn and_parse<U, F: FnOnce(P) -> SynResult<U> >(
+// 		self,
+// 		op: F
+// 	) -> SynResult<P> {
+// 		match self {
+// 			Err(syn) => SynErr(syn),
+// 			Ok(token) => op(token)
+// 		}
+// 	}
+// }
+
+/// # Extension functions for syn::Result
+/// * **and_parse_next**: A Clone of std::Result's **and_then** function.
+///    Only difference being that this version is implemented for syn::Result and will
+///    return a syn::Result.
+pub trait SynExtent<T>{
+	fn and_parse_next<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P>;
+	fn and_parse_iter<P, F: FnOnce(T) -> syn::Result<P>>(
+		self,
+		op: F
+	) -> syn::Result<P>;
+}
+
+impl<T> SynExtent<T> for syn::Result<T> {
+	fn and_parse_next<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P> {
+		match self {
+			Err(syn) => Err(syn),
+			Ok(tok) => op(tok)
+		}
+	}
+	fn and_parse_iter<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P> {
+		
+		todo!()
+	}
+}
