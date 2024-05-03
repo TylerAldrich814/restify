@@ -83,7 +83,7 @@ impl Attribute for ParamAttribute {
 			ParamAttribute::Default(_)
 			=> AttributeType::Quote(quote! {#[serde(default)]}),
 			ParamAttribute::SkipIf(method)
-				=> AttributeType::Quote(quote! {#[serde(skip_if_serializing_if = #method)]}),
+				=> AttributeType::Quote(quote! {#[serde(skip_serializing_if = #method)]}),
 			_ => panic!("NEEDS IMPLEMENTED"),
 		}
 	}
@@ -304,6 +304,8 @@ impl<'s, A: Attribute> Iterator for AttributeSlice<'s, A>  {
 pub struct CompiledAttributes {
 	pub quotes: Vec<TokenStream2>,
 	pub commands: Vec<AttributeCommands>,
+}
+impl CompiledAttributes {
 }
 
 impl<A: Attribute> From<Attributes<A>> for CompiledAttributes {

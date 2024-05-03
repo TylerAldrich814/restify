@@ -8,7 +8,7 @@ pub mod header;
 pub mod request;
 pub mod response;
 pub mod reqres;
-mod tools;
+pub mod tools;
 
 use query::gen_query;
 use header::gen_header;
@@ -27,10 +27,10 @@ pub fn gen_enum_components(
 	enums      : EnumsSlice,
 ) -> TokenStream2 {
 	let enum_fields = enums.quote_fields();
-	println!("Enum Attributes: {:?}", attributes);
-	// let attributes = attributes.quote_attributes();
-	let compiled_attributes: CompiledAttributes = attributes.into();
-	println!("{:?}", compiled_attributes);
+	let CompiledAttributes {
+		quotes,
+		commands
+	}= attributes.into();
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]

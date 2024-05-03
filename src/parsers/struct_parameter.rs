@@ -4,6 +4,7 @@ use proc_macro2::Ident;
 use quote::{quote, quote_spanned};
 use syn::{LitStr, Type, Visibility};
 use syn::spanned::Spanned;
+use crate::generators::tools::{insert_serde_optional_attributes, RestType};
 use crate::parsers::attributes::{AttributeCommands, Attributes, CompiledAttributes, ParamAttribute};
 use crate::utils::doc_str::DocString;
 
@@ -27,54 +28,6 @@ pub struct StructParameter {
 	pub optional: bool,
 }
 
-impl StructParameter {
-	pub fn quote(&self) -> TokenStream2 {
-		let name = &self.name;
-		let kind = &self.ty;
-		let type_tokens = if self.optional {
-			quote!{Option<#kind>}
-		} else {
-			quote!{#kind}
-		};
-		// let rename = &self.rename;
-		// let output = match rename {
-		// 	Some(serde) => {
-		// 		quote!{
-		// 			#[serde(rename="#serde")]
-		// 			#name: #type_tokens
-		// 		}
-		// 	}
-		// 	None => quote!{ #name: #type_tokens }
-		// };
-		///TODO: Quote Attribute Needed
-		let output = quote!{};
-		output.into()
-	}
-	pub fn quote_rename(&self) -> TokenStream2 {
-		// return if let Some(name) = &self.rename {
-		// 	quote! { #[serde(rename=#name)] }
-		// } else {
-		// 	quote! {}
-		// };
-		quote! {}
-	}
-}
-impl Display for StructParameter {
-	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		// TODO: Implement Display for Attributes
-		// if let Some(rename) = &self.rename {
-		// 	write!(f, "#[serde(rename=\"{}\")]\n", rename.value())?;
-		// }
-		write!(f, "{}: ", self.name.to_string())?;
-		let ty = &self.ty;
-		let d_type = quote!{ #ty };
-		if self.optional {
-			write!(f, "Option<{}>, \n", d_type.to_string())
-		} else {
-			write!(f, "{}, \n", d_type.to_string())
-		}
-	}
-}
 
 /// # A Slice of a Vec<StructParameter>
 ///
@@ -88,11 +41,6 @@ pub struct StructParameterSlice<'s>{
 	slice: &'s [StructParameter],
 	current: usize,
 }
-// impl<'s> Display for StructParameterSlice<'s> {
-// 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-// 		todo!()
-// 	}
-// }
 
 impl<'s> StructParameterSlice<'s> {
 	/// # Wrapper around Vec::len
@@ -150,30 +98,30 @@ impl<'s> StructParameterSlice<'s> {
 	/// ```
 	pub fn quote_serialize(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.iter().map(|field| {
-			// let attr = &field.attributes.iter().quote_attributes();
-			let attributes = &field.attributes.compile();
 			let field_name = &field.name;
 			let field_type = &field.ty;
+			let CompiledAttributes {
+				quotes,
+				commands
+			} = &field.attributes.compile();
 			
 			let assert_ser = quote_spanned! {field_type.span() =>
 				struct _AssertSer where #field_type: serde::Serialize;
 			};
-			
-			// let rename = &field.quote_rename();
-			
-			let output = if field.optional {
-				// #( #attr )*
-				quote! {
-					#[serde(skip_serializing_if="Option::is_none")]
-					#vis #field_name: Option<#field_type>,
-				}
-			} else {
-				// #( #attr )*
-				quote! {
+			if !field.optional {
+				return quote!(
+					#( #quotes )*
 					#vis #field_name: #field_type,
-				}
-			};
-			return output.into();
+				).into();
+			}
+			return insert_serde_optional_attributes(
+				quote!(
+					#( #quotes )*
+					#vis #field_name: Option<#field_type>,
+				),
+				RestType::Serializable,
+				&field.attributes,
+			).into();
 		}).collect();
 	}
 	
@@ -192,59 +140,61 @@ impl<'s> StructParameterSlice<'s> {
 	/// ```
 	pub fn quote_deserialize(&self, vis: &Visibility) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
-			// let attr = &field.attributes.iter().quote_attributes();
-			let attributes = &field.attributes.compile();
 			let field_name = &field.name;
 			let field_type = &field.ty;
+			let CompiledAttributes {
+				quotes,
+				commands
+			} = &field.attributes.compile();
 			
 			let assert_de = quote_spanned! {field_type.span() =>
 				struct _AssertSer where #field_type: for<'de> serde::Deserialize<'de>;
 			};
-			
-			let output = if field.optional {
-				// #( #attr )*
-				quote! {
-					#[serde(default)]
+			if !field.optional {
+				return quote! (
+					#( #quotes )*
 					#vis #field_name: #field_type,
-				}
-			} else {
-				// #( #attr )*
+				).into();
+			}
+			return insert_serde_optional_attributes(
 				quote! {
-					#vis #field_name: #field_type,
-				}
-			};
-			return output.into();
+						#( #quotes )*
+						#vis #field_name: Option<#field_type>,
+					},
+				RestType::Deserializable,
+				&field.attributes,
+			).into();
 		}).collect();
 	}
 	/// # StructParameter: Deserialize & Serialize
 	pub fn quote_full_serde(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.slice.iter().map(|field| {
-			let compiled_attributes = &field.attributes.compile();
 			let field_name = &field.name;
 			let field_type = &field.ty;
+			let CompiledAttributes {
+				quotes,
+				commands
+			} = &field.attributes.compile();
 			
 			//TODO: Not working atm, not sure why
 			let assert_de = quote_spanned! {field_type.span() =>
 				struct _AssertSer where #field_type: serde::Serialize + for<'de> serde::Deserialize<'de>;
 			};
 			
-			// let rename = &field.quote_rename();
-			
-			let output = if field.optional {
-				// #( #attr )*
-				quote! {
-					#[serde(skip_serializing_if="Option::is_none")]
-					#[serde(default)]
+			if !field.optional {
+				return quote! (
+					#( #quotes )*
 					#vis #field_name: #field_type,
-				}
-			} else {
-				//TODO: ATTRIBUTES
-				// #( #attr )*
-				quote! {
-					#vis #field_name: #field_type,
-				}
-			};
-			output.into()
+				).into();
+			}
+			return insert_serde_optional_attributes(
+				quote!{
+						#( #quotes )*
+						#vis #field_name: Option<#field_type>,
+					},
+				RestType::Both,
+				&field.attributes
+			).into();
 		}).collect()
 	}
 	
@@ -270,11 +220,17 @@ impl<'s> StructParameterSlice<'s> {
 		return self.iter().map(|field| {
 			let name = &field.name;
 			let ty = &field.ty;
+			let opt = field.optional;
 			
 			let fn_name = Ident::new(
 				&format!("with_{}", name.to_string()),
-				Span::call_site()
+				name.span(),
 			);
+			let ty = if field.optional {
+				quote!(Option<#ty>)
+			} else {
+				quote!(#ty)
+			};
 			
 			let output = quote!{
 				#vis fn #fn_name(mut self, #name: #ty) -> Self {
@@ -289,28 +245,27 @@ impl<'s> StructParameterSlice<'s> {
 	
 	pub fn quote_enum_struct_params(&self) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
-			let compiled_attributes = &field.attributes.compile();
 			let name = &field.name;
 			let ty = &field.ty;
 			let opt = field.optional;
-			
-			let p_type = if opt {
-				quote!{
-					Option<#ty>
-				}
-			} else {
-				quote!{
-					#ty
-				}
-			};
-			
-			// #( #attr )*
-			let output = quote!{
-				#[serde(default)]
-				#[serde(skip_serializing_if="Option::is_none")]
-				#name: #p_type,
-			};
-			output.into()
+			let CompiledAttributes {
+				quotes,
+				commands
+			} = &field.attributes.compile();
+			if !field.optional {
+				return quote!(
+					#( #quotes )*
+					#name: #ty,
+				).into();
+			}
+			return insert_serde_optional_attributes(
+				quote! {
+						#( #quotes )*
+						#name: Option<#ty>,
+					},
+				RestType::Both,
+				&field.attributes,
+			).into();
 		}).collect();
 	}
 }
@@ -331,6 +286,23 @@ impl<'s> From<&'s Vec<StructParameter>> for StructParameterSlice<'s> {
 		Self{
 			slice: value.as_slice(),
 			current: 0,
+		}
+	}
+}
+
+impl Display for StructParameter {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		// TODO: Implement Display for Attributes
+		// if let Some(rename) = &self.rename {
+		// 	write!(f, "#[serde(rename=\"{}\")]\n", rename.value())?;
+		// }
+		write!(f, "{}: ", self.name.to_string())?;
+		let ty = &self.ty;
+		let d_type = quote!{ #ty };
+		if self.optional {
+			write!(f, "Option<{}>, \n", d_type.to_string())
+		} else {
+			write!(f, "{}, \n", d_type.to_string())
 		}
 	}
 }

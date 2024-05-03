@@ -99,24 +99,25 @@ impl<'s> EnumsSlice<'s> {
 		return self.iter().map(|enumeration| {
 			let Enumeration { attributes, ident, param } = enumeration;
 			
-			// let attributes = attributes.quote_attributes();
-			let compiled_attributes: CompiledAttributes = attributes.into();
-			// #( #attributes )*
+			let CompiledAttributes {
+				quotes,
+				commands
+			}= attributes.into();
 			
 			
 			//TODO: Implement quote_attributes -> Include in all quotes
 			match param {
 				EnumParameter::Variant => {
-					// #( #attributes )*
 					let output = quote!{
+						#( #quotes )*
 						#ident,
 					};
 					output.into()
 				}
 				EnumParameter::Tuple {ty, opt} => {
 					let output = if *opt {
-						// #( #attributes )*
 						quote!{
+						#( #quotes )*
 							#ident(Option<#ty>),
 						}
 					} else {

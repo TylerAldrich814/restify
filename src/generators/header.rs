@@ -36,8 +36,10 @@ pub fn gen_header(
 ) -> TokenStream2 {
 	let header_fields = fields.quote_serialize(vis);
 	let header_builders = fields.quote_builder_fn(vis);
-	// let attributes = attributes.quote_attributes();
-	let compiled_attributes: CompiledAttributes = attributes.into();
+	let CompiledAttributes {
+		quotes,
+		commands
+	}= attributes.into();
 	
 	let mut doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
