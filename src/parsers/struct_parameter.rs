@@ -4,7 +4,7 @@ use proc_macro2::Ident;
 use quote::{quote, quote_spanned};
 use syn::{LitStr, Type, Visibility};
 use syn::spanned::Spanned;
-use crate::parsers::attributes::{Attributes, ParamAttribute};
+use crate::parsers::attributes::{AttributeCommands, Attributes, CompiledAttributes, ParamAttribute};
 use crate::utils::doc_str::DocString;
 
 /// # StructParameter:
@@ -150,7 +150,8 @@ impl<'s> StructParameterSlice<'s> {
 	/// ```
 	pub fn quote_serialize(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.iter().map(|field| {
-			let attr = &field.attributes.iter().quote_attributes();
+			// let attr = &field.attributes.iter().quote_attributes();
+			let attributes = &field.attributes.compile();
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -161,14 +162,14 @@ impl<'s> StructParameterSlice<'s> {
 			// let rename = &field.quote_rename();
 			
 			let output = if field.optional {
+				// #( #attr )*
 				quote! {
-					#( #attr )*
 					#[serde(skip_serializing_if="Option::is_none")]
 					#vis #field_name: Option<#field_type>,
 				}
 			} else {
+				// #( #attr )*
 				quote! {
-					#( #attr )*
 					#vis #field_name: #field_type,
 				}
 			};
@@ -191,7 +192,8 @@ impl<'s> StructParameterSlice<'s> {
 	/// ```
 	pub fn quote_deserialize(&self, vis: &Visibility) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
-			let attr = &field.attributes.iter().quote_attributes();
+			// let attr = &field.attributes.iter().quote_attributes();
+			let attributes = &field.attributes.compile();
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -200,14 +202,14 @@ impl<'s> StructParameterSlice<'s> {
 			};
 			
 			let output = if field.optional {
+				// #( #attr )*
 				quote! {
-					#( #attr )*
 					#[serde(default)]
 					#vis #field_name: #field_type,
 				}
 			} else {
+				// #( #attr )*
 				quote! {
-					#( #attr )*
 					#vis #field_name: #field_type,
 				}
 			};
@@ -217,7 +219,7 @@ impl<'s> StructParameterSlice<'s> {
 	/// # StructParameter: Deserialize & Serialize
 	pub fn quote_full_serde(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.slice.iter().map(|field| {
-			let attr = &field.attributes.iter().quote_attributes();
+			let compiled_attributes = &field.attributes.compile();
 			let field_name = &field.name;
 			let field_type = &field.ty;
 			
@@ -229,16 +231,16 @@ impl<'s> StructParameterSlice<'s> {
 			// let rename = &field.quote_rename();
 			
 			let output = if field.optional {
+				// #( #attr )*
 				quote! {
-					#( #attr )*
 					#[serde(skip_serializing_if="Option::is_none")]
 					#[serde(default)]
 					#vis #field_name: #field_type,
 				}
 			} else {
 				//TODO: ATTRIBUTES
+				// #( #attr )*
 				quote! {
-					#( #attr )*
 					#vis #field_name: #field_type,
 				}
 			};
@@ -287,7 +289,7 @@ impl<'s> StructParameterSlice<'s> {
 	
 	pub fn quote_enum_struct_params(&self) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
-			let attr = &field.attributes.iter().quote_attributes();
+			let compiled_attributes = &field.attributes.compile();
 			let name = &field.name;
 			let ty = &field.ty;
 			let opt = field.optional;
@@ -302,8 +304,8 @@ impl<'s> StructParameterSlice<'s> {
 				}
 			};
 			
+			// #( #attr )*
 			let output = quote!{
-				#( #attr )*
 				#[serde(default)]
 				#[serde(skip_serializing_if="Option::is_none")]
 				#name: #p_type,

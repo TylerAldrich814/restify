@@ -152,8 +152,6 @@ impl Parse for Enumeration {
 		let mut lookahead = input.lookahead1();
 		let attributes = input.parse::<Attributes<ParamAttribute>>()?;
 		
-		// let display: Option<Attributes<>> = input.parse().ok();
-		
 		let ident: Ident = input.parse()?;
 		let param: EnumParameter = input.parse()?;
 		

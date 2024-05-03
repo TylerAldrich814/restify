@@ -23,30 +23,40 @@ use rest_macros::restify;
 /// }]
 ///}
 ///```
-///     * Custom Error Handling:
-///       Could we add a feature where a User can tell our api! macro
-///       to include their own Error types for any generated functions
-///       that returns a Result?
-///         - Example: Generated Query::to_string returns a Result, due
-///           to serde_qs::to_string's return type
-///     * Implement an Enumeration Compiler. Use DisplayDoc for Serialization
-///     * Find a better solution for the compiled Struct/Enum Documentation.
+///     * [ ] Custom Error Handling:
+///           Could we add a feature where a User can tell our api! macro
+///           to include their own Error types for any generated functions
+///           that returns a Result?
+///           - Example: Generated Query::to_string returns a Result, due
+///             to serde_qs::to_string's return type
+///     * [✓] Implement an Enumeration Compiler.
+///     * [ ] For implemented Enums, Use DisplayDoc for Serialization
+///     * [ ] Find a better solution for the compiled Struct/Enum Documentation.
+///           module
+///     * [ ] `use` statements: Add capability to allow users to include 'use`
+///           statements. i.e., ``` use some::crate::Item; ```
+///
+///     * [ ]
+///     * [ ]
 fn todos(){}
 
 restify!{
 	[pub DoesVecWork: {
 		PUT "/api/vec/{ids}" => {
 			#[rename_all="RenameAll"]
+			#[builder]
 			struct MyIDs<Request> {
 				#[rename="Rename"]
 				ids: Vec<u64>,
 			}
 			#[derive(Clone)]
+			#[builder]
 			enum MyLittleEnum {
 				Little,
 			}
 			#[derive(Eq, PartialEq, Clone, Ord, PartialOrd)]
 			#[rename_all="CamelCase"]
+			#[builder]
 			enum MyEnum {
 				#[rename="VARIANT"]
 				Variant,

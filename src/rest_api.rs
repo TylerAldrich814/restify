@@ -1,10 +1,15 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use proc_macro::TokenStream;
+use std::collections::HashSet;
+use std::sync::Mutex;
+use lazy_static::lazy_static;
 use quote::quote;
 use serde::Serializer;
 use syn::{parse_macro_input, LitStr, Ident, Visibility};
+use syn::spanned::Spanned;
 use crate::generators::{gen_component_struct, gen_enum_components};
-use crate::parsers::endpoint_method::EndpointDataType;
+use crate::parsers::endpoint::Endpoint;
+use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
 use crate::parsers::rest_enum::{Enum, EnumsSlice};
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::RestEndpoints;
@@ -19,7 +24,8 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 		endpoints
 	} = parse_macro_input!(input as RestEndpoints);
 	
-	let generated: Vec<TokenStream2> = endpoints.iter().map(|endpoint| {
+	
+	let generated_code: Vec<TokenStream2> = endpoints.iter().map(|endpoint| {
 		let vis = &endpoint.vis;
 		let endpoint_name = &endpoint.name;
 		
@@ -59,7 +65,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 							method_name.to_string().as_str(),
 							name.to_string().as_str()
 						]);
-						struct_names.push(Ident::new(&struct_name, Span::call_site()));
+						struct_names.push(Ident::new(&struct_name, struct_name.span()));
 						
 						gen_component_struct(
 							vis,
@@ -71,10 +77,9 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 						)
 					}
 				}
-			}).collect();
+			}).collect(); // Internal user-defined structs and enums
 			
 			rust_fmt_quotes(&method_name.to_string(), &data_objects);
-			
 			let rest_method_struct_name = create_type_identifier(&[""]);
 			
 			let output = quote!{

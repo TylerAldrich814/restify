@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
+use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -36,7 +36,10 @@ pub fn gen_reqres(
 	let reqres_fields = fields.quote_serialize(vis);
 	let reqres_builders = fields.quote_builder_fn(vis);
 	
-	let attributes = attributes.quote_attributes();
+	// let attributes = attributes.quote_attributes();
+	let compiled_attributes: CompiledAttributes = attributes.into();
+	// #( #attributes )*
+	
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
@@ -44,7 +47,6 @@ pub fn gen_reqres(
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, Clone, serde::Serialize, serde::Deserialize)]
-		#( #attributes )*
 		#vis struct #name {
 			#( #reqres_fields )*
 		}

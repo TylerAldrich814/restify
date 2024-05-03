@@ -2,7 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
+use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -14,7 +14,11 @@ pub fn gen_query(
 ) -> TokenStream2 {
 	let query_fields = fields.quote_serialize(vis);
 	let query_builders = fields.quote_builder_fn(vis);
-	let attributes = attributes.quote_attributes();
+	
+	// let attributes = attributes.quote_attributes();
+	let compiled_attributes: CompiledAttributes = attributes.into();
+	// #( #attributes )*
+	
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string()).build();
@@ -22,7 +26,6 @@ pub fn gen_query(
 	let output = quote!{
 		#doc
 		#[derive(std::fmt::Debug, Clone, PartialEq, serde::Serialize)]
-		#( #attributes )*
 		#vis struct #name {
 			#( #query_fields )*
 		}

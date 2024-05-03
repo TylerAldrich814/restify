@@ -2,7 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
+use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -36,7 +36,8 @@ pub fn gen_header(
 ) -> TokenStream2 {
 	let header_fields = fields.quote_serialize(vis);
 	let header_builders = fields.quote_builder_fn(vis);
-	let attributes = attributes.quote_attributes();
+	// let attributes = attributes.quote_attributes();
+	let compiled_attributes: CompiledAttributes = attributes.into();
 	
 	let mut doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
@@ -45,7 +46,6 @@ pub fn gen_header(
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
-		#( #attributes )*
 		#vis struct #name {
 			#( #header_fields )*
 		}

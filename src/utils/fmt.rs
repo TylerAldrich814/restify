@@ -24,6 +24,11 @@ pub fn rust_fmt(title: &str, quote: &str) {
 	println!("Formatted Code:\n{formatted_code}");
 }
 
+/// # Restify Generator Debugging
+/// This method will take a TokenStream slice of the generated code by restify.
+/// Storing it in a file, using **rust_fmt** to format the file(syn wasn't built
+/// to generate pretty code..)
+/// And finally, we reload the formatted file, and print it onto the terminal.
 pub fn rust_fmt_quotes(title: &str, quotes: &[TokenStream]){
 	let manifest_dir = env!("CARGO_MANIFEST_DIR");
 	let file = format!("{manifest_dir}{}", TMP_FILE.replace("{0}", title));

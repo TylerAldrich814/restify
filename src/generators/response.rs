@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
+use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -35,7 +35,11 @@ pub fn gen_response(
 ) -> TokenStream2 {
 	let response_fields = fields.quote_deserialize(vis);
 	let response_builders = fields.quote_builder_fn(vis);
-	let attributes = attributes.quote_attributes();
+	
+	// let attributes = attributes.quote_attributes();
+	let compiled_attributes: CompiledAttributes = attributes.into();
+	// #( #attributes )*
+	
 	let doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
@@ -44,7 +48,6 @@ pub fn gen_response(
 	let output = quote! {
 		#[doc = "Response Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Deserialize)]
-		#( #attributes )*
 		#vis struct #name {
 			#( #response_fields )*
 		}

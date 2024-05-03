@@ -16,7 +16,7 @@ use request::gen_request;
 use response::gen_response;
 use reqres::gen_reqres;
 use crate::generators::tools::quote_rename;
-use crate::parsers::attributes::{AttributeSlice, TypeAttribute};
+use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
 use crate::parsers::rest_enum::EnumsSlice;
 
 /// Generates a Rust Enum based on the provided parameters.
@@ -28,12 +28,12 @@ pub fn gen_enum_components(
 ) -> TokenStream2 {
 	let enum_fields = enums.quote_fields();
 	println!("Enum Attributes: {:?}", attributes);
-	let attributes = attributes.quote_attributes();
-	
+	// let attributes = attributes.quote_attributes();
+	let compiled_attributes: CompiledAttributes = attributes.into();
+	println!("{:?}", compiled_attributes);
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
-		#( #attributes )*
 		#vis enum #name {
 			#( #enum_fields )*
 		}
@@ -51,13 +51,13 @@ pub fn gen_component_struct(
 ) -> TokenStream2 {
 	let name = Ident::new(struct_name, Span::call_site());
 	
-	let test_var = if let Some(variant) = variant {
+	let rest_variant = if let Some(variant) = variant {
 		variant
 	} else {
 		ident
 	};
 	
-	match test_var.to_string().as_str() {
+	match rest_variant.to_string().as_str() {
 		"Header"   => gen_header(&vis, attributes, &name, block),
 		"Request"  => gen_request(&vis, attributes, &name, block),
 		"Response" => gen_response(&vis, attributes, &name, block),
