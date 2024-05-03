@@ -46,6 +46,7 @@ restify!{
 				Little,
 			}
 			#[derive(Eq, PartialEq, Clone, Ord, PartialOrd)]
+			#[rename_all="CamelCase"]
 			enum MyEnum {
 				#[rename="VARIANT"]
 				Variant,
@@ -63,40 +64,6 @@ restify!{
 		}
 	}]
 }
-
-// restify!{
-// 	[pub MyEndpoint: {
-// 		GET "/api/user/{id}" => {
-// 			["CamelCase"]
-// 			enum ResponseKind {
-// 				Variant,
-// 				Tuple(?String),
-// 				Struct{
-// 					id: String,
-// 					name: ?String,
-// 					date: ?DateTime,
-// 				}
-// 			}
-// 			["camelCase"]
-// 			struct MyCustomStructName<Response> {
-// 				kind: ?ResponseKind,
-// 				["IsError"]
-// 				is_error: ?String,
-// 			}
-// 		},
-// 		POST "/api/user/{id}" => {
-// 			["camelCase"]
-// 			struct Request {
-// 				id: String,
-// 				message: String,
-// 				time_stamp: String,
-// 			}
-// 			struct Response {
-// 				kind: ?ResponseKind,
-// 			}
-// 		},
-// 	}]
-// }
 
 
 fn main(){

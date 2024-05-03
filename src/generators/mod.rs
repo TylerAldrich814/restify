@@ -27,10 +27,13 @@ pub fn gen_enum_components(
 	enums      : EnumsSlice,
 ) -> TokenStream2 {
 	let enum_fields = enums.quote_fields();
-	// let attributes = attributes.quote_attributes();
-	// #( #attributes )*
+	println!("Enum Attributes: {:?}", attributes);
+	let attributes = attributes.quote_attributes();
+	
+	
 	let output = quote! {
 		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
+		#( #attributes )*
 		#vis enum #name {
 			#( #enum_fields )*
 		}

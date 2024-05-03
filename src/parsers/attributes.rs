@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
@@ -17,7 +18,7 @@ type SynError = syn::Error;
 ///
 /// This method is used during the code generation stage
 /// (If the Attribute is meant for code generation)
-pub trait Attribute: Parse {
+pub trait Attribute: Parse + Debug{
 	fn quote(&self) -> TokenStream2;
 }
 
@@ -188,18 +189,18 @@ impl Parse for ParamAttribute {
 		};
 	}
 }
-pub struct Attributes<A: Attribute + Parse>(pub Vec<A>);
+pub struct Attributes<A: Attribute>(pub Vec<A>);
 
-impl<A: Attribute + Parse> Attributes<A> {
+impl<A: Attribute> Attributes<A> {
 	pub fn iter(&self) -> AttributeSlice<A> {
 		AttributeSlice {
-			slice: &self.0.as_slice(),
+			slice: self.0.as_slice(),
 			current: 0,
 		}
 	}
 }
 
-impl<A: Attribute + Parse> Parse for Attributes<A> {
+impl<A: Attribute> Parse for Attributes<A> {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut attributes = vec![];
 		loop {
@@ -212,7 +213,7 @@ impl<A: Attribute + Parse> Parse for Attributes<A> {
 		return Ok(Attributes(attributes));
 	}
 }
-pub fn parse_attribute<A: Attribute + Parse>(input: ParseStream) -> syn::Result<Option<A>> {
+pub fn parse_attribute<A: Attribute>(input: ParseStream) -> syn::Result<Option<A>> {
 	let mut lookahead = Lookahead::new(&input);
 	if !lookahead.peek(Token![#]) {
 		return Ok(None);
@@ -223,12 +224,12 @@ pub fn parse_attribute<A: Attribute + Parse>(input: ParseStream) -> syn::Result<
 	return Ok(Some(content.parse::<A>()?));
 }
 
-pub struct AttributeSlice<'s, A: Attribute + Parse> {
+pub struct AttributeSlice<'s, A: Attribute > {
 	pub slice: &'s [A],
 	current: usize
 }
 
-impl<'s, A: Attribute + Parse> AttributeSlice<'s, A>  {
+impl<'s, A: Attribute> AttributeSlice<'s, A>  {
 	pub fn len(&self) -> usize {
 		self.slice.len()
 	}
@@ -246,10 +247,10 @@ impl<'s, A: Attribute + Parse> AttributeSlice<'s, A>  {
 	}
 }
 
-impl<'s, A: Attribute + Parse> Iterator for AttributeSlice<'s, A>  {
+impl<'s, A: Attribute> Iterator for AttributeSlice<'s, A>  {
 	type Item = &'s A;
 	fn next(&mut self) -> Option<Self::Item> {
-		if self.len() >= self.current {
+		if self.current >= self.len() {
 			return None;
 		}
 		let item = &self.slice[self.current];
@@ -258,11 +259,43 @@ impl<'s, A: Attribute + Parse> Iterator for AttributeSlice<'s, A>  {
 	}
 }
 
-
-
-
-
-
-
-
-
+impl Debug for ParamAttribute {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			ParamAttribute::Rename(name)
+			=> write!(f, "#[serde(rename=\"{}\")]", name.value()),
+			ParamAttribute::Default(Some(def))
+			=> write!(f, "#[serde(default=\"{}\")", def.value()),
+			ParamAttribute::Default(_)
+			=> write!(f, "#[serde(default)]"),
+			ParamAttribute::SkipIf(method)
+			=> write!(f, "#[serde(skip_serializing_if=\"{}\")]", method.value()),
+		}
+	}
+}
+impl Debug for TypeAttribute {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			TypeAttribute::Derive(s)
+			=> write!(f,
+				"#[derive({})]",
+				 s.iter()
+					 .map(|d| d.to_string())
+					 .collect::<Vec<_>>()
+					 .join(",")
+			),
+			TypeAttribute::RenameAll(pattern)
+			=> write!(f, "#[serde(rename_all=\"{}\")]", pattern.value()),
+			TypeAttribute::Builder
+			=> write!(f, "<RESTIFY: Builder-Pattern = TRUE>"),
+		}
+	}
+}
+impl<'s, A: Attribute > Debug for AttributeSlice<'s, A> {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		for i in self.iter()  {
+			write!(f, "{:?}\n", i)?;
+		}
+		write!(f, "")
+	}
+}
