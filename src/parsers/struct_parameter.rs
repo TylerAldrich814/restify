@@ -1,11 +1,12 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use std::fmt::{Debug, Display, Formatter};
+use std::marker::PhantomData;
 use proc_macro2::Ident;
 use quote::{quote, quote_spanned};
 use syn::{LitStr, Type, Visibility};
 use syn::spanned::Spanned;
 use crate::generators::tools::{insert_serde_optional_attributes, RestType};
-use crate::parsers::attributes::{AttributeCommands, Attributes, CompiledAttributes, ParamAttribute};
+use crate::parsers::attributes::{AttributeCommands, Attributes, CompiledAttributes, ParamAttribute, TypeAttribute};
 use crate::utils::doc_str::DocString;
 
 /// # StructParameter:
@@ -43,7 +44,6 @@ pub struct StructParameterSlice<'s>{
 }
 
 impl<'s> StructParameterSlice<'s> {
-	/// # Wrapper around Vec::len
 	pub fn len(&self) -> usize {
 		self.slice.len()
 	}
@@ -114,13 +114,12 @@ impl<'s> StructParameterSlice<'s> {
 					#vis #field_name: #field_type,
 				).into();
 			}
-			return insert_serde_optional_attributes(
+			return insert_serde_optional_attributes::<TypeAttribute>(
 				quote!(
 					#( #quotes )*
 					#vis #field_name: Option<#field_type>,
 				),
 				RestType::Serializable,
-				&field.attributes,
 			).into();
 		}).collect();
 	}
@@ -156,13 +155,12 @@ impl<'s> StructParameterSlice<'s> {
 					#vis #field_name: #field_type,
 				).into();
 			}
-			return insert_serde_optional_attributes(
+			return insert_serde_optional_attributes::<TypeAttribute>(
 				quote! {
 						#( #quotes )*
 						#vis #field_name: Option<#field_type>,
 					},
 				RestType::Deserializable,
-				&field.attributes,
 			).into();
 		}).collect();
 	}
@@ -187,13 +185,12 @@ impl<'s> StructParameterSlice<'s> {
 					#vis #field_name: #field_type,
 				).into();
 			}
-			return insert_serde_optional_attributes(
+			return insert_serde_optional_attributes::<TypeAttribute>(
 				quote!{
 						#( #quotes )*
 						#vis #field_name: Option<#field_type>,
 					},
 				RestType::Both,
-				&field.attributes
 			).into();
 		}).collect()
 	}
@@ -252,19 +249,19 @@ impl<'s> StructParameterSlice<'s> {
 				quotes,
 				commands
 			} = &field.attributes.compile();
+			
 			if !field.optional {
 				return quote!(
 					#( #quotes )*
 					#name: #ty,
 				).into();
 			}
-			return insert_serde_optional_attributes(
+			return insert_serde_optional_attributes::<TypeAttribute>(
 				quote! {
 						#( #quotes )*
 						#name: Option<#ty>,
 					},
 				RestType::Both,
-				&field.attributes,
 			).into();
 		}).collect();
 	}

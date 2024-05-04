@@ -15,7 +15,6 @@ use header::gen_header;
 use request::gen_request;
 use response::gen_response;
 use reqres::gen_reqres;
-use crate::generators::tools::quote_rename;
 use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
 use crate::parsers::rest_enum::EnumsSlice;
 

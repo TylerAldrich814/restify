@@ -232,6 +232,10 @@ impl<A: Attribute> Attributes<A> {
 		let slice = self.iter();
 		return slice.into();
 	}
+	
+	pub fn get_kind(&self) -> String {
+		std::any::type_name::<A>().to_string()
+	}
 }
 
 impl<A: Attribute> Parse for Attributes<A> {
