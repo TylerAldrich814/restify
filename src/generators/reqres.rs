@@ -33,20 +33,21 @@ pub fn gen_reqres(
 	fields     : StructParameterSlice,
 ) -> TokenStream2 {
 	//TODO: Create a query_ser_der or some shit since reqres will implement both.
-	let reqres_fields = fields.quote_serialize(vis);
+	let reqres_fields = fields.quote_full_serde(vis);
 	let reqres_builders = fields.quote_builder_fn(vis);
 	
-	// let attributes = attributes.quote_attributes();
-	let compiled_attributes: CompiledAttributes = attributes.into();
-	// #( #attributes )*
+	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
+	let quotes = compiled_attributes.quotes_ref();
+	//TODO: iterate over Command Attributes.
 	
-	let doc = DocString::create()
+	let _doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
 		.build();
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, Clone, serde::Serialize, serde::Deserialize)]
+		#( #quotes )*
 		#vis struct #name {
 			#( #reqres_fields )*
 		}

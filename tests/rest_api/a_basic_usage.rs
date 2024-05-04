@@ -18,6 +18,11 @@ use rest_macros::restify;
 ///       - Example: Generated Query::to_string returns a Result, due
 ///         to serde_qs::to_string's return type
 /// * [✓] Implement an Enumeration Compiler.
+/// * [ ] ParamAttribute::struct_specific: A method that returns ```(bool, proc_macro2::Span)```
+///       True if the ParamAttribute is Struct-Specific, false if otherwise.
+///       This method needs to be more dynamic. Where when new ParamAttributes are created, I
+///       won't have to update this method. Maybe Go deeper with another layer of Generics?
+///       i.e., ``` enum ParamAttributes<Specify> ```.
 /// * [ ] Implement Generics & Lifetime annotation parsing and generating.
 ///       syn has a built-in Token Parser for Rust Lifetimes,
 ///       `syn::Lifetime`. Though. This one would be a bit harder to include

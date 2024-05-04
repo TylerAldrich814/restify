@@ -4,8 +4,7 @@ extern crate proc_macro2;
 extern crate core;
 
 use proc_macro::TokenStream;
-use syn::parse_macro_input;
-use crate::doc_str::{compile_doc_str, DocString};
+use crate::doc_str::compile_doc_str;
 use crate::rest_api::compile_rest;
 
 mod utils;

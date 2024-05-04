@@ -15,17 +15,18 @@ pub fn gen_query(
 	let query_fields = fields.quote_serialize(vis);
 	let query_builders = fields.quote_builder_fn(vis);
 	
-	// let attributes = attributes.quote_attributes();
-	let compiled_attributes: CompiledAttributes = attributes.into();
-	// #( #attributes )*
+	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
+	let quotes = compiled_attributes.quotes_ref();
+	//TODO: iterate over Command Attributes.
 	
-	let doc = DocString::create()
+	let _doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string()).build();
 	
+	
 	let output = quote!{
-		#doc
 		#[derive(std::fmt::Debug, Clone, PartialEq, serde::Serialize)]
+		#( #quotes )*
 		#vis struct #name {
 			#( #query_fields )*
 		}

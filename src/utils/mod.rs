@@ -18,6 +18,7 @@ use std::io::Write;
 ///   * &["this", "is", "bob"] => "this_is_bob"
 ///   * &["my", "GET", "endpoint"] => "my_get_endpoint"
 ///   * &\["ThisIsMySuperLongName"\] => "this_is_my_super_long_name"
+#[allow(unused)]
 pub fn snake_case(words: &[&str], cap: bool) -> String {
 	words.iter().map(|word| {
 		if word.chars().all(char::is_uppercase) {
@@ -53,7 +54,7 @@ pub fn snake_case(words: &[&str], cap: bool) -> String {
 ///   * camelCase(&["this", "is", "bob"], true) => "ThisIsBob"
 ///   * camelCase(&["my", "GET", "struct"], false) => "myGETStruct"
 ///   * camelCase(&["from_snake_case", false]) => "fromSnakeCase"
-#[allow(non_snake_case)]
+#[allow(non_snake_case, unused)]
 pub fn camelCase(words: &[&str], cap_first: bool) -> String {
 	let mut result = String::new();
 	let mut cap_next = false;
@@ -92,6 +93,7 @@ pub fn camelCase(words: &[&str], cap_first: bool) -> String {
 /// But the parsed tree would print
 /// out in Jetbrains builtin Terminal Emulator.
 /// IDK, weird
+#[allow(unused)]
 pub fn print_n_flush(output: &str) {
 	println!("{output}");
 	std::io::stdout().flush().unwrap();

@@ -1,8 +1,7 @@
-use proc_macro2::{Ident, Span};
-use quote::quote;
-use syn::{bracketed, LitStr, Token};
-use syn::parse::{Lookahead1, Parse, ParseBuffer, ParseStream, Peek};
-use crate::parsers::{VALID_REST_COMPONENT, valid_rest_component};
+use proc_macro2::Ident;
+use syn::Token;
+use syn::parse::{Lookahead1, ParseBuffer, ParseStream, Peek};
+use crate::parsers::valid_rest_component;
 
 pub struct Lookahead<'p> {
 	pub peeker: Lookahead1<'p>,
@@ -33,25 +32,6 @@ impl<'p> Lookahead<'p> {
 	pub fn shift_and_peek<T: Peek>(&mut self, token: T) -> bool {
 		self.shift();
 		self.peek(token)
-	}
-}
-
-pub fn syn_err(error: &str) -> syn::Error {
-	syn::Error::new(Span::call_site(), error)
-}
-
-/// Parses for an optional 'rename' Token field
-///    - Returns Ok(LitStr) if `["SomeLitStr"]` is next within the provided
-///      ParseStream
-///    - Returns syn::Error is the `rename` pattern wasn't found.
-pub fn parse_for_rename(input: ParseStream) -> syn::Result<LitStr> {
-	let lookahead = input.lookahead1();
-	return if lookahead.peek(syn::token::Bracket) {
-		let content;
-		bracketed!(content in input);
-		content.parse()
-	} else {
-		Err(syn::Error::new(Span::call_site(), "Rename Stream not found"))
 	}
 }
 
@@ -128,10 +108,6 @@ pub fn parse_struct_name_and_variant(
 ///    return a syn::Result.
 pub trait SynExtent<T>{
 	fn and_parse_next<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P>;
-	fn and_parse_iter<P, F: FnOnce(T) -> syn::Result<P>>(
-		self,
-		op: F
-	) -> syn::Result<P>;
 }
 
 impl<T> SynExtent<T> for syn::Result<T> {
@@ -140,9 +116,5 @@ impl<T> SynExtent<T> for syn::Result<T> {
 			Err(syn) => Err(syn),
 			Ok(tok) => op(tok)
 		}
-	}
-	fn and_parse_iter<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P> {
-		
-		todo!()
 	}
 }

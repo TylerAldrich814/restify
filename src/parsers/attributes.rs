@@ -1,10 +1,13 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
+use std::marker::PhantomData;
 use displaydoc::Display;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use proc_macro2::Ident;
 use quote::quote;
 use syn::{bracketed, LitStr, parenthesized, Token};
-use syn::parse::{Parse, ParseBuffer, ParseStream};
+use syn::parse::{Parse, ParseStream};
+use syn::spanned::Spanned;
+use crate::generators::tools::RestType;
 use crate::parsers::tools::{Lookahead, SynExtent};
 
 type SynError = syn::Error;
@@ -59,7 +62,29 @@ pub enum ParamAttribute {
 	SerializeWith,
 	DeserializeWith
 }
-
+impl ParamAttribute {
+	/// Returns true is self is struct-specific.
+	///
+	/// # TODO:
+	/// Only a temporary solution.
+	/// I need to make this more dynamic, where I wouldn't have to continuously update this
+	/// method whenever a new ParamAttribute is added..
+	/// But, at this moment, there only exists one non-struct specific Attribute, 'rename'
+	pub fn struct_specific(&self) -> (bool, Span) {
+		return match self {
+			ParamAttribute::Rename(p)          => (false, p.span()),
+			ParamAttribute::Default(Some(opt)) => (true,opt.span()),
+			ParamAttribute::Default(_)         => (true, format!("{}", self).span()),
+			ParamAttribute::SkipIf(m)          => (true,m.span()),
+			ParamAttribute::SerializeWith      => (true,Span::call_site()),
+			ParamAttribute::DeserializeWith    => (true, Span::call_site()),
+		}
+		// if let ParamAttribute::Rename(_) = self{
+		// 	return false;
+		// }
+		// return true;
+	}
+}
 
 impl Attribute for TypeAttribute {
 	fn quote(&self) -> AttributeType {
@@ -162,7 +187,6 @@ impl Parse for TypeAttribute {
 }
 impl Parse for ParamAttribute {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let mut lookahead = Lookahead::new(&input);
 		return match input.parse::<Ident>()?.to_string().as_str() {
 			"rename" => {
 				return Ok(ParamAttribute::Rename(
@@ -228,13 +252,24 @@ impl<A: Attribute> Attributes<A> {
 			current: 0,
 		}
 	}
-	pub fn compile(&self) -> CompiledAttributes {
+	pub fn compile(&self) -> CompiledAttributes<A> {
 		let slice = self.iter();
 		return slice.into();
 	}
-	
-	pub fn get_kind(&self) -> String {
-		std::any::type_name::<A>().to_string()
+}
+
+impl Attributes<ParamAttribute> {
+	/// Iterates over &ParamAttribute, calling **struct_specific**.
+	/// Returning true if the method returns true.
+	/// Returns False if none of the ParamAttributes are struct-specific
+	pub fn contains_struct_specific(&self) -> Option<Span> {
+		for a in self.iter() {
+			let test = a.struct_specific();
+			if test.0  {
+				return Some(test.1);
+			}
+		}
+		return None;
 	}
 }
 
@@ -252,7 +287,7 @@ impl<A: Attribute> Parse for Attributes<A> {
 	}
 }
 pub fn parse_attribute<A: Attribute>(input: ParseStream) -> syn::Result<Option<A>> {
-	let mut lookahead = Lookahead::new(&input);
+	let lookahead = Lookahead::new(&input);
 	if !lookahead.peek(Token![#]) {
 		return Ok(None);
 	}
@@ -278,9 +313,6 @@ impl<'s, A: Attribute> AttributeSlice<'s, A>  {
 			current: 0,
 		}
 	}
-	pub fn pull_commands(&self) {
-		let i = self.slice;
-	}
 }
 
 impl<'s, A: Attribute> Iterator for AttributeSlice<'s, A>  {
@@ -305,24 +337,84 @@ impl<'s, A: Attribute> Iterator for AttributeSlice<'s, A>  {
 ///     with the final generated product.
 ///   * [Vec]<[AttributeCommands]> commands: Special Attributes that command the
 ///     Restify Generator with special actions it will need to make.
-pub struct CompiledAttributes {
+pub struct CompiledAttributes<A: Attribute> {
 	pub quotes: Vec<TokenStream2>,
 	pub commands: Vec<AttributeCommands>,
-}
-impl CompiledAttributes {
+	_kind: PhantomData<A>
 }
 
-impl<A: Attribute> From<Attributes<A>> for CompiledAttributes {
+impl<A: Attribute> CompiledAttributes<A> {
+	pub fn quotes_ref(&self) -> &[TokenStream2] {
+		self.quotes.as_slice()
+	}
+	pub fn commands_ref(&self) -> &[AttributeCommands] {
+		self.commands.as_slice()
+	}
+}
+impl CompiledAttributes<TypeAttribute> {
+}
+impl CompiledAttributes<ParamAttribute> {
+	/// Ensures that essential Serde attributes are present in the TokenStream.
+	/// This function checks a given TokenStream for specific Serde attributes (`#[serde(skip_serializing_if="..")]` and `#[serde(default="...")]`). If any are missing, the function inserts default values based on the `rest_type`.
+	///
+	/// This functionality is critical for allowing users to manually specify Serde attributes in `restify!` invocations. By default, when a type parameter in `restify!` is marked as optional (e.g., `my_optional: ?MyType`), the appropriate Serde attribute is automatically added unless manually specified.
+	///
+	/// ## Examples
+	/// ```ignore
+	/// restify! {
+	///     [pub MyClient: {
+	///         PUT "v1/my/endpoint" => {
+	///             struct MyStruct<Request> {
+	///                 my_optional: ?MyType,
+	///             }
+	///         }
+	///     }]
+	/// }
+	/// ```
+	/// In the above example, `my_optional` is parsed as `Option<MyType>`. If no Serde attributes are manually specified for this field, `insert_serde_optionals` will add `#[serde(default)]` to the generated TokenStream.
+	///
+	/// ## Parameters
+	/// - `stream`: The TokenStream to check and potentially modify with Serde attributes.
+	/// - `rest_type`: Determines which Serde attributes to check for and insert, based on whether the context is serializable, deserializable, or both.
+	///
+	/// Returns a potentially modified TokenStream with the necessary Serde attributes included.
+	pub fn auto_fill_serde_attrs(
+		&self,
+		mut stream: TokenStream2,
+		rest_type: RestType
+	) -> TokenStream2 {
+		let quote_str = stream.to_string();
+		if let RestType::Serializable | RestType::Both = rest_type {
+			if !quote_str.contains("skip_serializing_if") {
+				stream = quote! {
+					#[serde(skip_serializing_if="Option::is_none")]
+					#stream
+				};
+			}
+		}
+		if let RestType::Deserializable | RestType::Both = rest_type {
+			if !quote_str.contains("default") {
+				stream = quote! {
+					#[serde(default)]
+					#stream
+				};
+			}
+		}
+		return stream;
+	}
+}
+
+impl<A: Attribute> From<Attributes<A>> for CompiledAttributes<A> {
 	fn from(attributes: Attributes<A>) -> Self {
 		attributes.iter().into()
 	}
 }
-impl<'s, A: Attribute> From<&'s Attributes<A>> for CompiledAttributes {
+impl<'s, A: Attribute> From<&'s Attributes<A>> for CompiledAttributes<A> {
 	fn from(attributes: &'s Attributes<A>) -> Self {
 		CompiledAttributes::from(attributes.iter())
 	}
 }
-impl<'s, A: Attribute> From<AttributeSlice<'s, A>> for CompiledAttributes {
+impl<'s, A: Attribute> From<AttributeSlice<'s, A>> for CompiledAttributes<A> {
 	fn from(attributes: AttributeSlice<'s, A>) -> Self {
 		let (
 			quotes,
@@ -336,13 +428,16 @@ impl<'s, A: Attribute> From<AttributeSlice<'s, A>> for CompiledAttributes {
 				}
 				(quotes, commands)
 			});
-		return CompiledAttributes{quotes, commands};
+		return CompiledAttributes{
+			quotes,
+			commands,
+			_kind: PhantomData,
+		};
 	}
 }
 
-impl Debug for CompiledAttributes {
+impl<A: Attribute> Debug for CompiledAttributes<A> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		self.commands.iter().map(|c| write!(f, "  CMD: {}", c));
 		for q in self.quotes.iter() {
 			write!(f, "Quote: \"{:?}\"\n", q.to_string())?;
 		}
@@ -353,6 +448,24 @@ impl Debug for CompiledAttributes {
 	}
 }
 
+impl Display for ParamAttribute {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		return match self {
+			ParamAttribute::Rename(p)
+			=> write!(f, "#[serde(rename=\"{}\")]", p.value()),
+			ParamAttribute::Default(Some(opt))
+			=> write!(f, "#[serde(default=\"{}\")]", opt.value()),
+			ParamAttribute::Default(_)
+			=> write!(f, "#[serde(default)]"),
+			ParamAttribute::SkipIf(m)
+			=> write!(f, "#[serde(skip_serializing_if=\"{}\")]", m.value()),
+			ParamAttribute::SerializeWith
+			=> write!(f, "TODO"),
+			ParamAttribute::DeserializeWith
+			=> write!(f, "TODO"),
+		}
+	}
+}
 impl Debug for ParamAttribute {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {

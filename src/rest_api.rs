@@ -1,21 +1,14 @@
-use proc_macro2::{Span, TokenStream as TokenStream2};
+use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::TokenStream;
-use std::collections::HashSet;
-use std::sync::Mutex;
-use lazy_static::lazy_static;
 use quote::quote;
-use serde::Serializer;
-use syn::{parse_macro_input, LitStr, Ident, Visibility};
+use syn::{parse_macro_input, Ident};
 use syn::spanned::Spanned;
 use crate::generators::{gen_component_struct, gen_enum_components};
-use crate::parsers::endpoint::Endpoint;
-use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
-use crate::parsers::rest_enum::{Enum, EnumsSlice};
+use crate::parsers::endpoint_method::EndpointDataType;
+use crate::parsers::rest_enum::Enum;
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::RestEndpoints;
-use crate::parsers::struct_parameter::{StructParameterSlice};
-use crate::utils::{create_type_identifier};
-use crate::utils::doc_str::DocString;
+use crate::utils::create_type_identifier;
 use crate::utils::fmt::{rust_fmt_quotes};
 
 /// Parses `restify!` TokenStream then compiles RESTful Client code.
@@ -25,13 +18,13 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 	} = parse_macro_input!(input as RestEndpoints);
 	
 	
-	let generated_code: Vec<TokenStream2> = endpoints.iter().map(|endpoint| {
+	let _generated_code: Vec<TokenStream2> = endpoints.iter().map(|endpoint| {
 		let vis = &endpoint.vis;
-		let endpoint_name = &endpoint.name;
+		let _endpoint_name = &endpoint.name;
 		
-		let methods: Vec<TokenStream> = endpoint.methods.iter().map(|method| {
+		let _methods: Vec<TokenStream> = endpoint.methods.iter().map(|method| {
 			let method_name = &method.method;
-			let uri = &method.uri;
+			let _uri = &method.uri;
 			
 			let mut struct_names: Vec<Ident> = Vec::new();
 			let mut enum_names: Vec<Ident> = Vec::new();
@@ -80,7 +73,7 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 			}).collect(); // Internal user-defined structs and enums
 			
 			rust_fmt_quotes(&method_name.to_string(), &data_objects);
-			let rest_method_struct_name = create_type_identifier(&[""]);
+			let _rest_method_struct_name = create_type_identifier(&[""]);
 			
 			let output = quote!{
 				#vis struct #

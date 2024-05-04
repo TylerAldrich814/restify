@@ -36,18 +36,19 @@ pub fn gen_header(
 ) -> TokenStream2 {
 	let header_fields = fields.quote_serialize(vis);
 	let header_builders = fields.quote_builder_fn(vis);
-	let CompiledAttributes {
-		quotes,
-		commands
-	}= attributes.into();
+	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
+	let quotes = compiled_attributes.quotes_ref();
 	
-	let mut doc = DocString::create()
+	//TODO: iterate over Command Attributes.
+	
+	let _doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
 		.build();
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
+		#( #quotes )*
 		#vis struct #name {
 			#( #header_fields )*
 		}

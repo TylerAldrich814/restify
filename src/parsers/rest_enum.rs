@@ -1,13 +1,10 @@
 use std::fmt;
 use std::fmt::Formatter;
-use std::fs::rename;
 use proc_macro2::Ident;
 use quote::quote;
-use syn::{braced, bracketed, LitStr, Token, Type};
-use syn::parse::{Parse, ParseStream};
+use syn::Type;
 use proc_macro2::TokenStream as TokenStream2;
-use crate::parsers::attributes::{Attribute, Attributes, AttributeSlice, CompiledAttributes, ParamAttribute, TypeAttribute};
-use crate::parsers::rest_struct::Struct;
+use crate::parsers::attributes::{Attributes, CompiledAttributes, ParamAttribute, TypeAttribute};
 use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 
 pub struct Enum {
@@ -40,13 +37,16 @@ pub struct Enumeration {
 
 impl fmt::Display for Enumeration {
 	fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-		// write!(f, "{}", self.attributes)?;
 		write!(f, "{}", self.ident.to_string())?;
 		
 		match &self.param {
 			EnumParameter::Variant => write!(f, ",\n")?,
 			EnumParameter::Tuple {ty, opt} => {
-				let ty = quote! { #ty };
+				let ty = if !opt {
+					quote! { #ty }
+				} else {
+					quote! { Option<#ty> }
+				};
 				write!(f, "({}),\n", ty.to_string())?
 			},
 			EnumParameter::Struct(st) => {
@@ -99,11 +99,8 @@ impl<'s> EnumsSlice<'s> {
 		return self.iter().map(|enumeration| {
 			let Enumeration { attributes, ident, param } = enumeration;
 			
-			let CompiledAttributes {
-				quotes,
-				commands
-			}= attributes.into();
-			
+			let compiled_attributes: CompiledAttributes<ParamAttribute> = attributes.into();
+			let quotes = compiled_attributes.quotes_ref();
 			
 			//TODO: Implement quote_attributes -> Include in all quotes
 			match param {

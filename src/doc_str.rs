@@ -1,17 +1,10 @@
 use proc_macro::TokenStream;
 use std::collections::HashMap;
-use std::io::Write;
-use std::process::id;
-use std::ptr::eq;
-use std::str::Chars;
-use proc_macro2::{Span, TokenStream as TokenStream2};
-use proc_macro2::Span as Span2;
-use quote::__private::ext::RepToTokensExt;
+use proc_macro2::Span;
 use quote::quote;
 use syn::{Ident, LitStr, parse_macro_input, Token};
-use syn::parse::{Lookahead1, Parse, ParseStream};
+use syn::parse::{Parse, ParseStream};
 
-static COMMA_ERROR: &'static str = "doc_str requires that all input parameters be comma delimited";
 
 fn throw_error<P>(message: &str) -> syn::Result<P> {
 	return Err(syn::Error::new(Span::call_site(), message));
@@ -212,8 +205,7 @@ impl Parse for DocString {
 pub fn compile_doc_str(input: TokenStream) -> TokenStream {
 	let DocString {
 		input_string,
-		positional_parameters,
-		named_parameters,
+		..
 	} = parse_macro_input!(input as DocString);
 	
 	

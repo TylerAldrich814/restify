@@ -43,10 +43,11 @@ pub fn gen_request(
 	let request_fields = fields.quote_serialize(vis);
 	let request_builders = fields.quote_builder_fn(vis);
 	
-	// let attributes = attributes.quote_attributes();
-	let compiled_attributes: CompiledAttributes = attributes.into();
+	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
+	let quotes = compiled_attributes.quotes_ref();
+	//TODO: iterate over Command Attributes.
 	
-	let doc = DocString::create()
+	let _doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
 		.build();
@@ -54,6 +55,7 @@ pub fn gen_request(
 	let output = quote! {
 		#[doc = "Request Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Serialize)]
+		#( #quotes )*
 		#vis struct #name {
 			#( #request_fields )*
 		}

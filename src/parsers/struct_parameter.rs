@@ -1,12 +1,11 @@
-use proc_macro2::{Span, TokenStream as TokenStream2};
-use std::fmt::{Debug, Display, Formatter};
-use std::marker::PhantomData;
+use proc_macro2::TokenStream as TokenStream2;
+use std::fmt::{Display, Formatter};
 use proc_macro2::Ident;
 use quote::{quote, quote_spanned};
-use syn::{LitStr, Type, Visibility};
+use syn::{Type, Visibility};
 use syn::spanned::Spanned;
-use crate::generators::tools::{insert_serde_optional_attributes, RestType};
-use crate::parsers::attributes::{AttributeCommands, Attributes, CompiledAttributes, ParamAttribute, TypeAttribute};
+use crate::generators::tools::RestType;
+use crate::parsers::attributes::{Attributes, ParamAttribute};
 use crate::utils::doc_str::DocString;
 
 /// # StructParameter:
@@ -54,6 +53,7 @@ impl<'s> StructParameterSlice<'s> {
 		}
 	}
 	
+	#[allow(unused)]
 	pub fn query_field_docs(&self) -> Vec<TokenStream2> {
 		return self.iter().map(|field| {
 			let field_name = &field.name.to_string();
@@ -100,12 +100,10 @@ impl<'s> StructParameterSlice<'s> {
 		return self.iter().map(|field| {
 			let field_name = &field.name;
 			let field_type = &field.ty;
-			let CompiledAttributes {
-				quotes,
-				commands
-			} = &field.attributes.compile();
+			let compiled_attributes = field.attributes.compile();
+			let quotes = compiled_attributes.quotes_ref();
 			
-			let assert_ser = quote_spanned! {field_type.span() =>
+			let _assert_ser = quote_spanned! {field_type.span() =>
 				struct _AssertSer where #field_type: serde::Serialize;
 			};
 			if !field.optional {
@@ -114,7 +112,7 @@ impl<'s> StructParameterSlice<'s> {
 					#vis #field_name: #field_type,
 				).into();
 			}
-			return insert_serde_optional_attributes::<TypeAttribute>(
+			return compiled_attributes.auto_fill_serde_attrs(
 				quote!(
 					#( #quotes )*
 					#vis #field_name: Option<#field_type>,
@@ -141,12 +139,11 @@ impl<'s> StructParameterSlice<'s> {
 		return self.iter().map(|field| {
 			let field_name = &field.name;
 			let field_type = &field.ty;
-			let CompiledAttributes {
-				quotes,
-				commands
-			} = &field.attributes.compile();
+			let compiled_attributes = field.attributes.compile();
 			
-			let assert_de = quote_spanned! {field_type.span() =>
+			let quotes = compiled_attributes.quotes_ref();
+			
+			let _assert_de = quote_spanned! {field_type.span() =>
 				struct _AssertSer where #field_type: for<'de> serde::Deserialize<'de>;
 			};
 			if !field.optional {
@@ -155,27 +152,26 @@ impl<'s> StructParameterSlice<'s> {
 					#vis #field_name: #field_type,
 				).into();
 			}
-			return insert_serde_optional_attributes::<TypeAttribute>(
+			return compiled_attributes.auto_fill_serde_attrs(
 				quote! {
 						#( #quotes )*
 						#vis #field_name: Option<#field_type>,
 					},
-				RestType::Deserializable,
+				RestType::Deserializable
 			).into();
 		}).collect();
 	}
 	/// # StructParameter: Deserialize & Serialize
+	#[allow(unused)]
 	pub fn quote_full_serde(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.slice.iter().map(|field| {
 			let field_name = &field.name;
 			let field_type = &field.ty;
-			let CompiledAttributes {
-				quotes,
-				commands
-			} = &field.attributes.compile();
+			let compiled_attributes = field.attributes.compile();
+			let quotes = compiled_attributes.quotes_ref();
 			
 			//TODO: Not working atm, not sure why
-			let assert_de = quote_spanned! {field_type.span() =>
+			let _assert_de = quote_spanned! {field_type.span() =>
 				struct _AssertSer where #field_type: serde::Serialize + for<'de> serde::Deserialize<'de>;
 			};
 			
@@ -185,12 +181,12 @@ impl<'s> StructParameterSlice<'s> {
 					#vis #field_name: #field_type,
 				).into();
 			}
-			return insert_serde_optional_attributes::<TypeAttribute>(
-				quote!{
+			return compiled_attributes.auto_fill_serde_attrs(
+				quote! {
 						#( #quotes )*
 						#vis #field_name: Option<#field_type>,
 					},
-				RestType::Both,
+				RestType::Both
 			).into();
 		}).collect()
 	}
@@ -216,9 +212,7 @@ impl<'s> StructParameterSlice<'s> {
 	pub fn quote_builder_fn(&self, vis: &Visibility) -> Vec<TokenStream2> {
 		return self.iter().map(|field| {
 			let name = &field.name;
-			let ty = &field.ty;
-			let opt = field.optional;
-			
+			let ty   = &field.ty;
 			let fn_name = Ident::new(
 				&format!("with_{}", name.to_string()),
 				name.span(),
@@ -243,12 +237,9 @@ impl<'s> StructParameterSlice<'s> {
 	pub fn quote_enum_struct_params(&self) -> Vec<TokenStream2>{
 		return self.iter().map(|field| {
 			let name = &field.name;
-			let ty = &field.ty;
-			let opt = field.optional;
-			let CompiledAttributes {
-				quotes,
-				commands
-			} = &field.attributes.compile();
+			let ty   = &field.ty;
+			let compiled_attributes = field.attributes.compile();
+			let quotes = compiled_attributes.quotes_ref();
 			
 			if !field.optional {
 				return quote!(
@@ -256,7 +247,7 @@ impl<'s> StructParameterSlice<'s> {
 					#name: #ty,
 				).into();
 			}
-			return insert_serde_optional_attributes::<TypeAttribute>(
+			return compiled_attributes.auto_fill_serde_attrs(
 				quote! {
 						#( #quotes )*
 						#name: Option<#ty>,
@@ -290,9 +281,6 @@ impl<'s> From<&'s Vec<StructParameter>> for StructParameterSlice<'s> {
 impl Display for StructParameter {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		// TODO: Implement Display for Attributes
-		// if let Some(rename) = &self.rename {
-		// 	write!(f, "#[serde(rename=\"{}\")]\n", rename.value())?;
-		// }
 		write!(f, "{}: ", self.name.to_string())?;
 		let ty = &self.ty;
 		let d_type = quote!{ #ty };

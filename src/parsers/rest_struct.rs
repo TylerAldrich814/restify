@@ -1,6 +1,5 @@
 use proc_macro2::Ident;
-use syn::LitStr;
-use crate::parsers::attributes::{Attribute, Attributes, TypeAttribute};
+use crate::parsers::attributes::{Attributes, TypeAttribute};
 use crate::parsers::struct_parameter::StructParameter;
 
 /// # Struct:

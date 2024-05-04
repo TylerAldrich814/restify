@@ -1,11 +1,9 @@
-use std::process::id;
-use proc_macro2::{Literal, Span, TokenStream as TokenStream2};
-use quote::{quote, quote_spanned};
+use proc_macro2::Span;
+use quote::quote_spanned;
 
 use proc_macro2::Ident;
-use syn::{braced, bracketed, LitStr, parenthesized, parse_quote_spanned, Token, Type, Visibility};
-use syn::ext::IdentExt;
-use syn::parse::{Lookahead1, Parse, Parser, ParseStream};
+use syn::{braced, bracketed, LitStr, parenthesized, Token, Type, Visibility};
+use syn::parse::{Lookahead1, Parse, ParseStream};
 use syn::spanned::Spanned;
 use crate::parsers::attributes::{Attributes, ParamAttribute, TypeAttribute};
 use crate::parsers::endpoint::Endpoint;
@@ -13,7 +11,7 @@ use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
 use crate::parsers::rest_enum::{Enum, Enumeration, EnumParameter};
 use crate::parsers::rest_struct::Struct;
-use crate::parsers::tools::{parse_struct_name_and_variant};
+use crate::parsers::tools::{Lookahead, parse_struct_name_and_variant};
 
 pub mod endpoint;
 pub mod endpoint_method;
@@ -23,23 +21,17 @@ pub mod rest_enum;
 mod tools;
 pub mod attributes;
 
-pub static VALID_METHODS: &[&str] = &[
-	"GET",
-	"POST",
-	"PUT",
-	"DELETE",
-	"PATCH",
-	"OPTIONS",
-	"HEAD"
-];
-pub static VALID_REST_COMPONENT: &[&str] = &[
-	"Header",
-	"Request",
-	"Response",
-	"Reqres",
-	"Query"
-];
-
+pub fn valid_rest_method(identifier: &Ident) -> bool {
+	[
+		"GET",
+		"POST",
+		"PUT",
+		"DELETE",
+		"PATCH",
+		"OPTIONS",
+		"HEAD"
+	].contains(&identifier.to_string().as_str())
+}
 pub fn valid_rest_component(identifier: &Ident) -> bool {
 	[
 		"Header",
@@ -76,26 +68,25 @@ pub struct RestEndpoints {
 //TODO: Parser Implementations >>-------------------------------------------------------------------
 impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let mut lookahead = input.lookahead1();
+		// let mut lookahead = input.lookahead1();
+		let mut lookahead = Lookahead::new(&input);
 		let attributes = input.parse::<Attributes<ParamAttribute>>()?;
 		
 		let name: Ident = input.parse()?;
 		
 		input.parse::<Token![:]>()?;
 		
-		lookahead = input.lookahead1();
-		let optional = lookahead.peek(Token![?]);
-		if optional{ input.parse::<Token![?]>()?; }
+		let optional = lookahead.shift_and_peek(Token![?]);
+		if optional { input.parse::<Token![?]>()?; }
 		
 		let ty: Type = input.parse()?;
 		
 		//TODO: Not working atm, not sure why
-		let assert_debug = quote_spanned! {ty.span() =>
+		let _assert_debug = quote_spanned! {ty.span() =>
 			struct _AssertDebug where #ty: std::display::Debug + std::clone::Clone;
 		};
 		
-		lookahead = input.lookahead1();
-		if lookahead.peek(Token![,]) {
+		if lookahead.shift_and_peek(Token![,]) {
 			input.parse::<Token![,]>()?;
 		}
 		
@@ -110,10 +101,10 @@ impl Parse for StructParameter {
 impl Parse for EnumParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut param: syn::Result<Self> = Err(syn::Error::new(
-			Span::call_site(),
+			input.span(),
 			"Invalid Enumeration Parameter kind"
 		));
-		let mut lookahead = input.lookahead1();
+		let mut lookahead = Lookahead::new(&input);
 		
 		if lookahead.peek(Token![,]) {
 			input.parse::<Token![,]>()?;
@@ -123,14 +114,13 @@ impl Parse for EnumParameter {
 			let content;
 			parenthesized!(content in input);
 			
-			lookahead = content.lookahead1();
-			let opt = lookahead.peek(Token![?]);
+			let opt = lookahead.new_buffer_and_peek(&content, Token![?]);
 			if opt { content.parse::<Token![?]>()?; }
 			param = Ok(EnumParameter::Tuple {ty: content.parse::<Type>()?, opt});
 		}
 		else if lookahead.peek(syn::token::Brace) {
 			let mut parameters = Vec::new();
-			let mut params;
+			let params;
 			braced!(params in input);
 			
 			while !params.is_empty() {
@@ -149,11 +139,18 @@ impl Parse for EnumParameter {
 
 impl Parse for Enumeration {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let mut lookahead = input.lookahead1();
 		let attributes = input.parse::<Attributes<ParamAttribute>>()?;
 		
 		let ident: Ident = input.parse()?;
 		let param: EnumParameter = input.parse()?;
+		if let EnumParameter::Variant | EnumParameter::Tuple{..} = param {
+			if let Some(span) = attributes.contains_struct_specific(){
+				return Err(syn::Error::new(
+					span,
+					"Enumeration: Detected a Struct-Parameter-Specific Attribute attached to either an Enum Variant or Tuple"
+				));
+			}
+		}
 		
 		Ok(Enumeration{ attributes, ident, param })
 	}
@@ -190,32 +187,31 @@ impl Parse for Struct {
 
 impl Parse for EndpointDataType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let mut lookahead = input.lookahead1();
 		let attributes = input.parse::<Attributes<TypeAttribute>>()?;
 		
-		lookahead = input.lookahead1();
+		let lookahead = Lookahead::new(&input);
 		return if lookahead.peek(Token![struct]) {
 			input.parse::<Token![struct]>()?;
 			
-			let mut st = input.parse::<Struct>()?
+			let st = input.parse::<Struct>()?
 				.with_attributes(attributes);
 			
 			Ok(EndpointDataType::Struct(st))
 		} else if lookahead.peek(Token![enum]) {
 			input.parse::<Token![enum]>()?;
 			
-			let mut en = input.parse::<Enum>()?
+			let en = input.parse::<Enum>()?
 				.with_attributes(attributes);
 			Ok(EndpointDataType::Enum(en))
 		} else {
-			Err(syn::Error::new(Span::call_site(), "Failed to find either an Enum nor a Struct"))
+			Err(syn::Error::new(input.span(), "Failed to find either an Enum nor a Struct"))
 		}
 	}
 }
 impl Parse for EndpointMethod {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let method: Ident = input.parse()?;
-		if !VALID_METHODS.contains(&method.to_string().as_str()) {
+		if !valid_rest_method(&method) {
 			return Err(syn::Error::new(method.span(), "Invalid REST Method provided"));
 		}
 		let uri: LitStr = input.parse()?;

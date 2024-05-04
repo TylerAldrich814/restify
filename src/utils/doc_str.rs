@@ -1,6 +1,5 @@
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
-use proc_macro2::Ident;
 use syn::LitStr;
 
 #[derive(Debug)]
@@ -22,7 +21,7 @@ impl DocString {
 	}
 	
 	pub fn merge(mut self, rhs: Self) -> Self{
-		let mut rhs = rhs;
+		let rhs = rhs;
 		self.body.extend(rhs.body);
 		self
 	}
@@ -30,7 +29,8 @@ impl DocString {
 	///TODO: Redo this. Find a better way to compile Documentation for our generated structs
 	pub fn build(mut self) -> TokenStream2 {
 		self.body.push("\"]".to_string());
-		let doc = self.body.iter().enumerate().fold((0, String::new()), |(i, full), (k, doc)| {
+		//TODO: What was I doing here? lol
+		let doc = self.body.iter().enumerate().fold((0, String::new()), |(_i, full), (k, doc)| {
 			if k == 0 {
 				(k+1, format!("{doc}\n"))
 			} else {
@@ -50,7 +50,7 @@ mod doc_tests {
 	use super::*;
 	
 	#[test] fn doc(){
-		let mut doc = DocString::create()
+		let doc = DocString::create()
 			.with_doc("# MyDocTest")
 			.with_doc("This is my DocTest description.")
 			.merge(DocString::create()

@@ -1,7 +1,7 @@
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{LitStr, Variadic, Visibility};
+use syn::Visibility;
 use crate::parsers::struct_parameter::StructParameterSlice;
 pub mod query;
 pub mod header;
@@ -26,13 +26,12 @@ pub fn gen_enum_components(
 	enums      : EnumsSlice,
 ) -> TokenStream2 {
 	let enum_fields = enums.quote_fields();
-	let CompiledAttributes {
-		quotes,
-		commands
-	}= attributes.into();
+	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
+	let quotes = compiled_attributes.quotes_ref();
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
+		#( #quotes )*
 		#vis enum #name {
 			#( #enum_fields )*
 		}

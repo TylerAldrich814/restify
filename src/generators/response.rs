@@ -36,11 +36,11 @@ pub fn gen_response(
 	let response_fields = fields.quote_deserialize(vis);
 	let response_builders = fields.quote_builder_fn(vis);
 	
-	// let attributes = attributes.quote_attributes();
-	let compiled_attributes: CompiledAttributes = attributes.into();
-	// #( #attributes )*
+	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
+	let quotes = compiled_attributes.quotes_ref();
+	//TODO: iterate over Command Attributes.
 	
-	let doc = DocString::create()
+	let _doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
 		.build();
@@ -48,6 +48,7 @@ pub fn gen_response(
 	let output = quote! {
 		#[doc = "Response Variant"]
 		#[derive(std::fmt::Debug, Clone, serde::Deserialize)]
+		#( #quotes )*
 		#vis struct #name {
 			#( #response_fields )*
 		}
