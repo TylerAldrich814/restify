@@ -7,6 +7,7 @@ use syn::{LitStr, parenthesized, Token};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use crate::attributes::Attribute;
+use crate::attributes::command::RunCommand;
 use crate::parsers::tools::SynExtent;
 
 type SynError = syn::Error;
@@ -34,8 +35,22 @@ pub enum AttrCommands {
 	/// Builder: Compile Builder Style for current Type
 	Builder,
 }
+
 impl AttrCommands {
-	pub fn command(&self) {}
+	pub fn run_cmd(&self) -> RunCommand{
+		match self {
+			AttrCommands::Builder => RunCommand::Builder(Box::new(
+				|(vis, name, fields)| -> TokenStream2 {
+					let build_methods = fields.quote_builder_fn(vis);
+					quote!(
+						impl #name {
+							#( #build_methods )*
+						}
+					).into()
+				}
+			)),
+		}
+	}
 }
 
 impl From<&TypeAttr> for Option<AttrCommands> {

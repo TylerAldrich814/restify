@@ -2,7 +2,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
-use crate::attributes::{AttrCommands, CompiledAttrs, TypeAttr};
+use crate::attributes::{AttrCommands, CompiledAttrs, RunCommand, TypeAttr};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -45,21 +45,6 @@ pub fn gen_request(
 	let quotes = compiled_attrs.quotes_ref();
 	//TODO: iterate over Command Attributes.
 	
-	let mut generated_cmds: Vec<TokenStream2> = vec![];
-	for command in compiled_attrs.commands.iter() {
-		match command {
-			AttrCommands::Builder => {
-				let builders = fields.quote_builder_fn(vis);
-				generated_cmds.push(quote!(
-					impl #name {
-						#( #builders )*
-					}
-				).into());
-			}
-		}
-	}
-	
-	
 	let _doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
 		.merge(fields.doc_string())
@@ -71,9 +56,6 @@ pub fn gen_request(
 		#( #quotes )*
 		#vis struct #name {
 			#( #request_fields )*
-		}
-		
-		impl #name {
 		}
 	};
 	output.into()

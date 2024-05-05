@@ -28,3 +28,4 @@ pub use compiled::CompiledAttrs;
 pub use kinds::*;
 pub use attrs::*;
 pub use attr_slice::*;
+pub use command::RunCommand;
