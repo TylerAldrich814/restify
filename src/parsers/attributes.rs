@@ -12,7 +12,7 @@ use crate::parsers::tools::{Lookahead, SynExtent};
 
 type SynError = syn::Error;
 
-/// # AttributeType:
+/// # AttrType:
 /// A Wrapper Enumeration around Restify's Generation step for Attributes.
 /// This wrapper is needed due to how the Attribute type was designed to
 /// have multiple roles.
@@ -25,19 +25,28 @@ type SynError = syn::Error;
 ///     portion of the final product,
 ///     i.e., TypeAttribute::Builder - A Command that tells Restify to generate
 ///     the Builder Pattern for Type definition it's attached to.
-pub enum AttributeType {
+pub enum AttrType {
 	Quote(TokenStream2),
-	Command(AttributeCommands),
+	Command(AttrCommands),
 }
 
 #[derive(Display)]
-pub enum AttributeCommands {
+pub enum AttrCommands {
 	/// Builder: Compile Builder Style for current Type
 	Builder,
 }
 
+impl From<&TypeAttr> for Option<AttrCommands> {
+	fn from(attr: &TypeAttr) -> Self {
+		match attr {
+			TypeAttr::Builder => Some(AttrCommands::Builder),
+			_ => None, // Until I add more AttrCommands
+		}
+	}
+}
+
 /// # Attribute Trait:
-/// Bounded to [Parse], used for Implementing Rust Types to be used with [Attributes]
+/// Bounded to [Parse], used for Implementing Rust Types to be used with [Attrs]
 /// At this time, [Attribute] has one trait method.
 ///
 /// ```ignore
@@ -47,22 +56,24 @@ pub enum AttributeCommands {
 /// This method is used during the code generation stage
 /// (If the Attribute is meant for code generation)
 pub trait Attribute: Parse + Debug{
-	fn quote(&self) -> AttributeType;
+	fn quote(&self) -> AttrType;
 }
 
-pub enum TypeAttribute {
+#[derive(Clone)]
+pub enum TypeAttr {
 	Derive(Vec<Ident>),
 	RenameAll(LitStr),
 	Builder,
 }
-pub enum ParamAttribute {
+#[derive(Clone)]
+pub enum ParamAttr {
 	Rename(LitStr),
 	Default(Option<LitStr>),
 	SkipIf(LitStr),
 	SerializeWith,
 	DeserializeWith
 }
-impl ParamAttribute {
+impl ParamAttr {
 	/// Returns true is self is struct-specific.
 	///
 	/// # TODO:
@@ -72,12 +83,12 @@ impl ParamAttribute {
 	/// But, at this moment, there only exists one non-struct specific Attribute, 'rename'
 	pub fn struct_specific(&self) -> (bool, Span) {
 		return match self {
-			ParamAttribute::Rename(p)          => (false, p.span()),
-			ParamAttribute::Default(Some(opt)) => (true,opt.span()),
-			ParamAttribute::Default(_)         => (true, format!("{}", self).span()),
-			ParamAttribute::SkipIf(m)          => (true,m.span()),
-			ParamAttribute::SerializeWith      => (true,Span::call_site()),
-			ParamAttribute::DeserializeWith    => (true, Span::call_site()),
+			ParamAttr::Rename(p)          => (false, p.span()),
+			ParamAttr::Default(Some(opt)) => (true, opt.span()),
+			ParamAttr::Default(_)         => (true, format!("{}", self).span()),
+			ParamAttr::SkipIf(m)          => (true, m.span()),
+			ParamAttr::SerializeWith      => (true, Span::call_site()),
+			ParamAttr::DeserializeWith    => (true, Span::call_site()),
 		}
 		// if let ParamAttribute::Rename(_) = self{
 		// 	return false;
@@ -86,35 +97,35 @@ impl ParamAttribute {
 	}
 }
 
-impl Attribute for TypeAttribute {
-	fn quote(&self) -> AttributeType {
+impl Attribute for TypeAttr {
+	fn quote(&self) -> AttrType {
 		return match self {
-			TypeAttribute::Derive(derives)
-				=> AttributeType::Quote(quote! {#[derive( #( #derives, )* )]}),
-			TypeAttribute::RenameAll(pattern)
-				=> AttributeType::Quote(quote! {#[serde(rename_all = #pattern)]}),
-			TypeAttribute::Builder
-				=> AttributeType::Command(AttributeCommands::Builder)
+			TypeAttr::Derive(derives)
+				=> AttrType::Quote(quote! {#[derive( #( #derives, )* )]}),
+			TypeAttr::RenameAll(pattern)
+				=> AttrType::Quote(quote! {#[serde(rename_all = #pattern)]}),
+			TypeAttr::Builder
+				=> AttrType::Command(AttrCommands::Builder)
 		}
 	}
 }
-impl Attribute for ParamAttribute {
-	fn quote(&self) -> AttributeType {
+impl Attribute for ParamAttr {
+	fn quote(&self) -> AttrType {
 		return match self {
-			ParamAttribute::Rename(name)
-				=> AttributeType::Quote(quote! {#[serde(reanme = #name)]}),
-			ParamAttribute::Default(Some(def))
-				=> AttributeType::Quote(quote! {#[serde(default = #def)]}),
-			ParamAttribute::Default(_)
-			=> AttributeType::Quote(quote! {#[serde(default)]}),
-			ParamAttribute::SkipIf(method)
-				=> AttributeType::Quote(quote! {#[serde(skip_serializing_if = #method)]}),
+			ParamAttr::Rename(name)
+				=> AttrType::Quote(quote! {#[serde(reanme = #name)]}),
+			ParamAttr::Default(Some(def))
+				=> AttrType::Quote(quote! {#[serde(default = #def)]}),
+			ParamAttr::Default(_)
+			=> AttrType::Quote(quote! {#[serde(default)]}),
+			ParamAttr::SkipIf(method)
+				=> AttrType::Quote(quote! {#[serde(skip_serializing_if = #method)]}),
 			_ => panic!("NEEDS IMPLEMENTED"),
 		}
 	}
 }
 
-impl Parse for TypeAttribute {
+impl Parse for TypeAttr {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = Lookahead::new(&input);
 		return match input.parse::<Ident>()?.to_string().as_str() {
@@ -151,10 +162,10 @@ impl Parse for TypeAttribute {
 					sub_content.parse::<Token![,]>()?;
 				}
 				
-				return Ok(TypeAttribute::Derive(derives));
+				return Ok(TypeAttr::Derive(derives));
 			}
 			"rename_all" => {
-				return Ok(TypeAttribute::RenameAll(
+				return Ok(TypeAttr::RenameAll(
 					input.parse::<Token![=]>()
 						.map_err(|syn| SynError::new(
 							syn.span(),
@@ -176,7 +187,7 @@ impl Parse for TypeAttribute {
 						"TypeAttribute::Builder - This command doesn't take any arguments. Only the 'builder' Identifier itself."
 					));
 				}
-				return Ok(TypeAttribute::Builder);
+				return Ok(TypeAttr::Builder);
 			}
 			unknown => Err(SynError::new(
 				input.span(),
@@ -185,11 +196,11 @@ impl Parse for TypeAttribute {
 		};
 	}
 }
-impl Parse for ParamAttribute {
+impl Parse for ParamAttr {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		return match input.parse::<Ident>()?.to_string().as_str() {
 			"rename" => {
-				return Ok(ParamAttribute::Rename(
+				return Ok(ParamAttr::Rename(
 					input.parse::<Token![=]>()
 						.map_err(|syn| SynError::new(
 							syn.span(),
@@ -205,7 +216,7 @@ impl Parse for ParamAttribute {
 				));
 			}
 			"skip_if" => {
-				return Ok(ParamAttribute::SkipIf(
+				return Ok(ParamAttr::SkipIf(
 					input.parse::<Token![=]>()
 						.map_err(|syn| SynError::new(
 							syn.span(),
@@ -221,7 +232,7 @@ impl Parse for ParamAttribute {
 				));
 			}
 			"default" => {
-				return Ok(ParamAttribute::Default({
+				return Ok(ParamAttr::Default({
 					if input.is_empty(){ None }
 					else {
 						input.parse::<Token![=]>()
@@ -243,22 +254,35 @@ impl Parse for ParamAttribute {
 		};
 	}
 }
-pub struct Attributes<A: Attribute>(pub Vec<A>);
+pub struct Attrs<A: Attribute>(pub Vec<A>);
 
-impl<A: Attribute> Attributes<A> {
-	pub fn iter(&self) -> AttributeSlice<A> {
-		AttributeSlice {
+impl<A: Attribute> Default for Attrs<A> {
+	fn default() -> Self {
+		Attrs(vec![])
+	}
+}
+
+impl<'a> FromIterator<&'a TypeAttr> for Attrs<TypeAttr> {
+	fn from_iter<T: IntoIterator<Item = &'a TypeAttr>>(iter: T) -> Self {
+		let attrs = iter.into_iter().cloned().collect::<Vec<TypeAttr>>();
+		Attrs(attrs)
+	}
+}
+
+impl<A: Attribute> Attrs<A> {
+	pub fn iter(&self) -> AttrSlice<A> {
+		AttrSlice {
 			slice: self.0.as_slice(),
 			current: 0,
 		}
 	}
-	pub fn compile(&self) -> CompiledAttributes<A> {
+	pub fn compile(&self) -> CompiledAttrs<A> {
 		let slice = self.iter();
 		return slice.into();
 	}
 }
 
-impl Attributes<ParamAttribute> {
+impl Attrs<ParamAttr> {
 	/// Iterates over &ParamAttribute, calling **struct_specific**.
 	/// Returning true if the method returns true.
 	/// Returns False if none of the ParamAttributes are struct-specific
@@ -273,7 +297,7 @@ impl Attributes<ParamAttribute> {
 	}
 }
 
-impl<A: Attribute> Parse for Attributes<A> {
+impl<A: Attribute> Parse for Attrs<A> {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut attributes = vec![];
 		loop {
@@ -283,7 +307,7 @@ impl<A: Attribute> Parse for Attributes<A> {
 				Ok(_) => break,
 			}
 		}
-		return Ok(Attributes(attributes));
+		return Ok(Attrs(attributes));
 	}
 }
 pub fn parse_attribute<A: Attribute>(input: ParseStream) -> syn::Result<Option<A>> {
@@ -298,24 +322,23 @@ pub fn parse_attribute<A: Attribute>(input: ParseStream) -> syn::Result<Option<A
 }
 
 
-pub struct AttributeSlice<'s, A: Attribute > {
+pub struct AttrSlice<'s, A: Attribute > {
 	pub slice: &'s [A],
 	current: usize
 }
 
-impl<'s, A: Attribute> AttributeSlice<'s, A>  {
+impl<'s, A: Attribute> AttrSlice<'s, A>  {
 	pub fn len(&self) -> usize {
 		self.slice.len()
 	}
-	pub fn iter(&self) -> AttributeSlice<A> {
-		AttributeSlice {
+	pub fn iter(&self) -> AttrSlice<A> {
+		AttrSlice {
 			slice: self.slice,
 			current: 0,
 		}
 	}
 }
-
-impl<'s, A: Attribute> Iterator for AttributeSlice<'s, A>  {
+impl<'s, A: Attribute> Iterator for AttrSlice<'s, A>  {
 	type Item = &'s A;
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.current >= self.len() {
@@ -335,25 +358,25 @@ impl<'s, A: Attribute> Iterator for AttributeSlice<'s, A>  {
 /// # Parameters:
 ///   * [Vec]<[proc_macro2::TokenStream]> quotes: Attributes that will be included
 ///     with the final generated product.
-///   * [Vec]<[AttributeCommands]> commands: Special Attributes that command the
+///   * [Vec]<[AttrCommands]> commands: Special Attributes that command the
 ///     Restify Generator with special actions it will need to make.
-pub struct CompiledAttributes<A: Attribute> {
+pub struct CompiledAttrs<A: Attribute> {
 	pub quotes: Vec<TokenStream2>,
-	pub commands: Vec<AttributeCommands>,
+	pub commands: Vec<AttrCommands>,
 	_kind: PhantomData<A>
 }
 
-impl<A: Attribute> CompiledAttributes<A> {
+impl<A: Attribute> CompiledAttrs<A> {
 	pub fn quotes_ref(&self) -> &[TokenStream2] {
 		self.quotes.as_slice()
 	}
-	pub fn commands_ref(&self) -> &[AttributeCommands] {
+	pub fn commands_ref(&self) -> &[AttrCommands] {
 		self.commands.as_slice()
 	}
 }
-impl CompiledAttributes<TypeAttribute> {
+impl CompiledAttrs<TypeAttr> {
 }
-impl CompiledAttributes<ParamAttribute> {
+impl CompiledAttrs<ParamAttr> {
 	/// Ensures that essential Serde attributes are present in the TokenStream.
 	/// This function checks a given TokenStream for specific Serde attributes (`#[serde(skip_serializing_if="..")]` and `#[serde(default="...")]`). If any are missing, the function inserts default values based on the `rest_type`.
 	///
@@ -404,31 +427,31 @@ impl CompiledAttributes<ParamAttribute> {
 	}
 }
 
-impl<A: Attribute> From<Attributes<A>> for CompiledAttributes<A> {
-	fn from(attributes: Attributes<A>) -> Self {
+impl<A: Attribute> From<Attrs<A>> for CompiledAttrs<A> {
+	fn from(attributes: Attrs<A>) -> Self {
 		attributes.iter().into()
 	}
 }
-impl<'s, A: Attribute> From<&'s Attributes<A>> for CompiledAttributes<A> {
-	fn from(attributes: &'s Attributes<A>) -> Self {
-		CompiledAttributes::from(attributes.iter())
+impl<'s, A: Attribute> From<&'s Attrs<A>> for CompiledAttrs<A> {
+	fn from(attributes: &'s Attrs<A>) -> Self {
+		CompiledAttrs::from(attributes.iter())
 	}
 }
-impl<'s, A: Attribute> From<AttributeSlice<'s, A>> for CompiledAttributes<A> {
-	fn from(attributes: AttributeSlice<'s, A>) -> Self {
+impl<'s, A: Attribute> From<AttrSlice<'s, A>> for CompiledAttrs<A> {
+	fn from(attributes: AttrSlice<'s, A>) -> Self {
 		let (
 			quotes,
 			commands
-		): (Vec<TokenStream2>, Vec<AttributeCommands>) = attributes
+		): (Vec<TokenStream2>, Vec<AttrCommands>) = attributes
 			.iter()
 			.fold((vec![], vec![]), |(mut quotes, mut commands), attribute| {
 				match attribute.quote() {
-					AttributeType::Quote(quote) => quotes.push(quote),
-					AttributeType::Command(command) => commands.push(command)
+					AttrType::Quote(quote) => quotes.push(quote),
+					AttrType::Command(command) => commands.push(command)
 				}
 				(quotes, commands)
 			});
-		return CompiledAttributes{
+		return CompiledAttrs {
 			quotes,
 			commands,
 			_kind: PhantomData,
@@ -436,7 +459,7 @@ impl<'s, A: Attribute> From<AttributeSlice<'s, A>> for CompiledAttributes<A> {
 	}
 }
 
-impl<A: Attribute> Debug for CompiledAttributes<A> {
+impl<A: Attribute> Debug for CompiledAttrs<A> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		for q in self.quotes.iter() {
 			write!(f, "Quote: \"{:?}\"\n", q.to_string())?;
@@ -448,43 +471,43 @@ impl<A: Attribute> Debug for CompiledAttributes<A> {
 	}
 }
 
-impl Display for ParamAttribute {
+impl Display for ParamAttr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		return match self {
-			ParamAttribute::Rename(p)
+			ParamAttr::Rename(p)
 			=> write!(f, "#[serde(rename=\"{}\")]", p.value()),
-			ParamAttribute::Default(Some(opt))
+			ParamAttr::Default(Some(opt))
 			=> write!(f, "#[serde(default=\"{}\")]", opt.value()),
-			ParamAttribute::Default(_)
+			ParamAttr::Default(_)
 			=> write!(f, "#[serde(default)]"),
-			ParamAttribute::SkipIf(m)
+			ParamAttr::SkipIf(m)
 			=> write!(f, "#[serde(skip_serializing_if=\"{}\")]", m.value()),
-			ParamAttribute::SerializeWith
+			ParamAttr::SerializeWith
 			=> write!(f, "TODO"),
-			ParamAttribute::DeserializeWith
+			ParamAttr::DeserializeWith
 			=> write!(f, "TODO"),
 		}
 	}
 }
-impl Debug for ParamAttribute {
+impl Debug for ParamAttr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
-			ParamAttribute::Rename(name)
+			ParamAttr::Rename(name)
 			=> write!(f, "#[serde(rename=\"{}\")]", name.value()),
-			ParamAttribute::Default(Some(def))
+			ParamAttr::Default(Some(def))
 			=> write!(f, "#[serde(default=\"{}\")", def.value()),
-			ParamAttribute::Default(_)
+			ParamAttr::Default(_)
 			=> write!(f, "#[serde(default)]"),
-			ParamAttribute::SkipIf(method)
+			ParamAttr::SkipIf(method)
 			=> write!(f, "#[serde(skip_serializing_if=\"{}\")]", method.value()),
 			_ => write!(f, "TODO: NEEDS IMPLEMENTED")
 		}
 	}
 }
-impl Debug for TypeAttribute {
+impl Debug for TypeAttr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
-			TypeAttribute::Derive(s)
+			TypeAttr::Derive(s)
 			=> write!(f,
 				"#[derive({})]",
 				 s.iter()
@@ -492,14 +515,14 @@ impl Debug for TypeAttribute {
 					 .collect::<Vec<_>>()
 					 .join(",")
 			),
-			TypeAttribute::RenameAll(pattern)
+			TypeAttr::RenameAll(pattern)
 			=> write!(f, "#[serde(rename_all=\"{}\")]", pattern.value()),
-			TypeAttribute::Builder
+			TypeAttr::Builder
 			=> write!(f, "<RESTIFY: Builder-Pattern = TRUE>"),
 		}
 	}
 }
-impl<'s, A: Attribute > Debug for AttributeSlice<'s, A> {
+impl<'s, A: Attribute > Debug for AttrSlice<'s, A> {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		for i in self.iter()  {
 			write!(f, "{:?}\n", i)?;

@@ -1,7 +1,102 @@
 pub mod fmt;
 pub mod doc_str;
 
+use proc_macro::Span;
 use std::io::Write;
+use std::ops::Index;
+use std::str::FromStr;
+use displaydoc::Display;
+use syn::spanned::Spanned;
+
+#[derive(Debug, Clone, Display, Eq, PartialEq)]
+pub enum RestVariant {
+	/// Header
+	Header,
+	/// Request
+	Request,
+	/// Response
+	Response,
+	/// ReqRes
+	ReqRes,
+	/// Query
+	Query,
+}
+impl RestVariant {
+	pub fn is_valid(variant: &proc_macro2::Ident) -> bool {
+		return RestVariant::try_from(variant).is_ok();
+	}
+}
+
+impl TryFrom<&proc_macro2::Ident> for RestVariant {
+	type Error = syn::Error;
+	fn try_from(ident: &proc_macro2::Ident) -> Result<Self, Self::Error> {
+		return RestVariant::try_from(ident.to_string());
+	}
+}
+impl TryFrom<String> for RestVariant {
+	type Error = syn::Error;
+	fn try_from(variant: String) -> Result<Self, Self::Error>  {
+		return match variant.as_str() {
+			"Header"   => Ok(RestVariant::Header),
+			"Request"  => Ok(RestVariant::Request),
+			"Response" => Ok(RestVariant::Response),
+			"ReqRes"   => Ok(RestVariant::ReqRes),
+			"Query"    => Ok(RestVariant::Query),
+			unknown    => Err(syn::Error::new(
+				proc_macro2::Span::call_site(),
+				&format!("An Unknown REST variant was found: {unknown}")
+			))
+		}
+	}
+}
+
+#[derive(Debug, Clone, Display, Eq, PartialEq)]
+pub enum RestMethods {
+	/// GET
+	GET,
+	/// POST
+	POST,
+	/// PUT
+	PUT,
+	/// DELETE
+	DELETE,
+	/// PATCH
+	PATCH,
+	/// OPTIONS
+	OPTIONS,
+	/// HEAD
+	HEAD,
+}
+impl RestMethods {
+	pub fn is_valid(method: &proc_macro2::Ident) -> bool {
+		return RestMethods::try_from(method).is_ok();
+	}
+}
+
+impl TryFrom<&proc_macro2::Ident> for RestMethods {
+	type Error = syn::Error;
+	fn try_from(ident: &proc_macro2::Ident) -> Result<Self, Self::Error> {
+		return RestMethods::try_from(ident.to_string())
+	}
+}
+impl TryFrom<String> for RestMethods {
+	type Error = syn::Error;
+	fn try_from(method: String) -> Result<Self, Self::Error> {
+		match method.as_str() {
+			"GET"     => Ok(RestMethods::GET),
+			"POST"    => Ok(RestMethods::POST),
+			"PUT"     => Ok(RestMethods::PUT),
+			"DELETE"  => Ok(RestMethods::DELETE),
+			"PATCH"   => Ok(RestMethods::PATCH),
+			"OPTIONS" => Ok(RestMethods::OPTIONS),
+			"HEAD"    => Ok(RestMethods::HEAD),
+			unknown   => Err(syn::Error::new(
+				proc_macro2::Span::call_site(),
+				&format!("An Unknown REST Method was found: {unknown}")
+			))
+		}
+	}
+}
 
 /// # &\[&str\] => snake_case String
 /// Takes in a slice of string slices, converts and concatenates
@@ -39,6 +134,14 @@ pub fn snake_case(words: &[&str], cap: bool) -> String {
 	}).collect::<Vec<_>>().join("_")
 }
 
+pub fn snake_case_ident(words: &[&str], cap: bool) -> proc_macro2::Ident {
+	let snake_case = snake_case(words, cap);
+	return proc_macro2::Ident::new(
+		&snake_case,
+		snake_case.span()
+	);
+}
+
 /// # &\[&str\] => (c|C)amelCase String
 /// Takes in a slice of string slices, converts and concatenates
 /// them into a (c|C)amelCase styled word.
@@ -64,10 +167,17 @@ pub fn camelCase(words: &[&str], cap_first: bool) -> String {
 			result.push_str(word);
 			continue;
 		}
+		
+		//TODO: Quick fix( An edge case was found; camelCased method can't handle camelCased words )
+		//      -- This should be redone though.
+		let word = snake_case(&[*word], false);
+		
 		for (i, c) in word.chars().enumerate() {
 			if c == '_' || c == '-' {
 				cap_next = true;
-			} else if c.is_alphabetic() {
+				continue;
+			}
+			if c.is_alphabetic() {
 				let should_cap_first = w == 0 && i == 0 && cap_first;
 				let not_first_word_but_first_char = w != 0 && i == 0;
 				if should_cap_first || not_first_word_but_first_char {
@@ -84,6 +194,14 @@ pub fn camelCase(words: &[&str], cap_first: bool) -> String {
 		}
 	}
 	result
+}
+
+#[allow(non_snake_case, unused)]
+pub fn camelCaseIdent(words: &[&str], cap: bool) -> proc_macro2::Ident {
+	return proc_macro2::Ident::new(
+		camelCase(words, cap).as_str(),
+		proc_macro2::Span::call_site()
+	);
 }
 
 
@@ -146,6 +264,27 @@ mod util_tests {
 		assert_eq!(&c3, "my_GET_parameter",   "Should be \"my_GET_parameter\"");
 		assert_eq!(&c4, "from_camel_case", "Should be \"from_camel_case\"");
 	}
+	#[test] fn camel2() {
+		let ident = proc_macro2::Ident::new(
+			"DoesVecWork",
+			proc_macro2::Span::call_site()
+		);
+		let method = proc_macro2::Ident::new(
+			"GET",
+			proc_macro2::Span::call_site()
+		);
+		let camel = camelCase(
+			&[
+				ident.to_string().as_str(),
+				method.to_string().as_str()
+			],
+			true
+		);
+		
+		println!("CamelCase: {camel}");
+		assert_eq!("DoesVecWorkGET", camel.as_str());
+	}
+	
 	#[test] fn camel() {
 		let one = "I_am_tyler";
 		let two = vec!["i", "am", "tyler"];

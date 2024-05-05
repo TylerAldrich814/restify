@@ -1,3 +1,4 @@
+use std::process::id;
 use proc_macro2::Span;
 use quote::quote_spanned;
 
@@ -5,13 +6,14 @@ use proc_macro2::Ident;
 use syn::{braced, bracketed, LitStr, parenthesized, Token, Type, Visibility};
 use syn::parse::{Lookahead1, Parse, ParseStream};
 use syn::spanned::Spanned;
-use crate::parsers::attributes::{Attributes, ParamAttribute, TypeAttribute};
+use crate::parsers::attributes::{Attrs, ParamAttr, TypeAttr};
 use crate::parsers::endpoint::Endpoint;
 use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
 use crate::parsers::rest_enum::{Enum, Enumeration, EnumParameter};
 use crate::parsers::rest_struct::Struct;
 use crate::parsers::tools::{Lookahead, parse_struct_name_and_variant};
+use crate::utils::{RestMethods, RestVariant};
 
 pub mod endpoint;
 pub mod endpoint_method;
@@ -21,26 +23,6 @@ pub mod rest_enum;
 mod tools;
 pub mod attributes;
 
-pub fn valid_rest_method(identifier: &Ident) -> bool {
-	[
-		"GET",
-		"POST",
-		"PUT",
-		"DELETE",
-		"PATCH",
-		"OPTIONS",
-		"HEAD"
-	].contains(&identifier.to_string().as_str())
-}
-pub fn valid_rest_component(identifier: &Ident) -> bool {
-	[
-		"Header",
-		"Request",
-		"Response",
-		"Reqres",
-		"Query"
-	].contains(&identifier.to_string().as_str())
-}
 
 /// # Level 0 Rest Macro Parser
 /// Takes in the entire ParseStream.
@@ -70,7 +52,7 @@ impl Parse for StructParameter {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		// let mut lookahead = input.lookahead1();
 		let mut lookahead = Lookahead::new(&input);
-		let attributes = input.parse::<Attributes<ParamAttribute>>()?;
+		let attributes = input.parse::<Attrs<ParamAttr>>()?;
 		
 		let name: Ident = input.parse()?;
 		
@@ -139,7 +121,7 @@ impl Parse for EnumParameter {
 
 impl Parse for Enumeration {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let attributes = input.parse::<Attributes<ParamAttribute>>()?;
+		let attributes = input.parse::<Attrs<ParamAttr>>()?;
 		
 		let ident: Ident = input.parse()?;
 		let param: EnumParameter = input.parse()?;
@@ -166,7 +148,7 @@ impl Parse for Enum {
 			enums.push(enumerations.parse()?);
 		}
 		
-		Ok(Enum{ attributes: Attributes(vec![]), name, enums })
+		Ok(Enum{ attributes: Attrs(vec![]), name, enums })
 	}
 }
 
@@ -181,13 +163,13 @@ impl Parse for Struct {
 			parameters.push(content.parse()?);
 		}
 		
-		Ok(Struct{ attributes: Attributes(vec![]), name, rest_variant, parameters })
+		Ok(Struct{ attributes: Attrs(vec![]), name, rest_variant, parameters })
 	}
 }
 
 impl Parse for EndpointDataType {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
-		let attributes = input.parse::<Attributes<TypeAttribute>>()?;
+		let attributes = input.parse::<Attrs<TypeAttr>>()?;
 		
 		let lookahead = Lookahead::new(&input);
 		return if lookahead.peek(Token![struct]) {
@@ -211,7 +193,7 @@ impl Parse for EndpointDataType {
 impl Parse for EndpointMethod {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let method: Ident = input.parse()?;
-		if !valid_rest_method(&method) {
+		if !RestMethods::is_valid(&method) {
 			return Err(syn::Error::new(method.span(), "Invalid REST Method provided"));
 		}
 		let uri: LitStr = input.parse()?;
@@ -250,7 +232,7 @@ impl Parse for Endpoint {
 			methods.push(content.parse()?);
 		}
 		
-		Ok(Endpoint{ vis, name, methods })
+		Ok(Endpoint{ attrs: Attrs::default(), vis, name, methods })
 	}
 }
 
@@ -259,26 +241,34 @@ impl Parse for RestEndpoints {
 		let mut endpoints: Vec<Endpoint> = Vec::new();
 		
 		let mut lookahead: Lookahead1;
+		let mut lookahead = Lookahead::new(&input);
+		let mut attrs: Option<Attrs<TypeAttr>> = None;
+		
 		while !input.is_empty() {
 			if !endpoints.is_empty() {
-				lookahead = input.lookahead1();
-				if !lookahead.peek(Token![,]){
+				if !lookahead.shift_and_peek(Token![,]){
 					return Err(syn::Error::new(
 						input.span(),
 						"Endpoints must be comma-delimited"
 					));
-				} else if lookahead.peek(Token![,]){
-					input.parse::<Token![,]>()?;
 				}
+				input.parse::<Token![,]>()?;
 			}
+			
+			attrs = input.parse().ok();
 			
 			let content;
 			bracketed!(content in input);
 			while !content.is_empty() {
-				endpoints.push(content.parse()?);
+				let endpoint = if let Some(ref attrs) = attrs  {
+					content.parse::<Endpoint>()?
+						.with_attrs(attrs)
+				} else {
+					content.parse()?
+				};
+				endpoints.push(endpoint);
 			}
 		}
-		
 		Ok(RestEndpoints{ endpoints })
 	}
 }

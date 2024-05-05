@@ -2,21 +2,20 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
+use crate::parsers::attributes::{AttrSlice, CompiledAttrs, TypeAttr};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
 pub fn gen_query(
-	vis        : &Visibility,
-	attributes : AttributeSlice<TypeAttribute>,
-	name       : &Ident,
-	fields     : StructParameterSlice,
+	vis            : &Visibility,
+	compiled_attrs : CompiledAttrs<TypeAttr>,
+	name           : &Ident,
+	fields         : StructParameterSlice,
 ) -> TokenStream2 {
 	let query_fields = fields.quote_serialize(vis);
 	let query_builders = fields.quote_builder_fn(vis);
 	
-	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
-	let quotes = compiled_attributes.quotes_ref();
+	let quotes = compiled_attrs.quotes_ref();
 	//TODO: iterate over Command Attributes.
 	
 	let _doc = DocString::create()

@@ -1,5 +1,5 @@
 use proc_macro2::Ident;
-use crate::parsers::attributes::{Attributes, TypeAttribute};
+use crate::parsers::attributes::{Attrs, TypeAttr};
 use crate::parsers::struct_parameter::StructParameter;
 
 /// # Struct:
@@ -20,13 +20,13 @@ pub struct Struct {
 	// From syn's Documentation
 	// | The empty string is not an identifier. Use Option<Ident>.
 	// | A lifetime is not an identifier. Use syn::Lifetime instead.
-	pub attributes: Attributes<TypeAttribute>,
+	pub attributes: Attrs<TypeAttr>,
 	pub name: Ident,
 	pub rest_variant: Option<Ident>,
 	pub parameters: Vec<StructParameter>,
 }
 impl Struct {
-	pub fn with_attributes(mut self, attributes: Attributes<TypeAttribute>) -> Self {
+	pub fn with_attributes(mut self, attributes: Attrs<TypeAttr>) -> Self {
 		self.attributes = attributes;
 		return self;
 	}

@@ -18,6 +18,32 @@ use rest_macros::restify;
 ///       - Example: Generated Query::to_string returns a Result, due
 ///         to serde_qs::to_string's return type
 /// * [✓] Implement an Enumeration Compiler.
+///
+/// # Restify-Specific Commands:
+/// * **\#[rest:attribute:command = "argument"]**
+/// * [ ] A Restify Rename Attribute Command that works like Serde's rename attributes.
+///       Example: If a user wants the name of their endpoint to be different from what
+///       Restify would make.
+///       In this quick example. '#\[rest:rename={param: "user_ids"}]'
+///       This Command attribute would have to dynamically parse a variety of different elements.
+///       I would also have to find a solution for communicating these settings back to the
+///       Generator when in the generation phase.
+/// ```ignore
+/// restify!{
+///   [pub MyEndpoint: {
+///     GET "/api/user/{id}/pictures" => {
+///       #[rename_all="CamelCase"]
+///       #[rest:rename={ param: "user_ids", type: "MyUserIDs" }]
+///         -- or something like this --
+///       #[rest:rename:param = ""]
+///       struct MyUserIds<Request> {
+///         ids: Vec<u64>
+///       }
+///     }
+///   }]
+/// }
+/// ```
+///
 /// * [ ] ParamAttribute::struct_specific: A method that returns ```(bool, proc_macro2::Span)```
 ///       True if the ParamAttribute is Struct-Specific, false if otherwise.
 ///       This method needs to be more dynamic. Where when new ParamAttributes are created, I
@@ -38,6 +64,7 @@ use rest_macros::restify;
 pub fn todos(){}
 
 restify!{
+	#[builder]
 	[pub DoesVecWork: {
 		PUT "/api/vec/{ids}" => {
 			#[rename_all="RenameAll"]
@@ -69,6 +96,30 @@ restify!{
 					one: ?String,
 					#[rename="THREE"]
 					neither: ?String,
+				}
+			}
+		}
+	}],
+	#[builder]
+	[pub SecondEndpoint: {
+		GET "v2/endpoint/{id}" => {
+			#[rename_all="CamelCase"]
+			#[builder]
+			struct EndpointReq<Request> {
+				ids: Vec<String>,
+			}
+			#[rename_all="CamelCase"]
+			enum MyEnum {
+				One,
+				Two(?String),
+				Three {
+					#[rename="IV"]
+					four: ?i32,
+					#[rename="V"]
+					five: u64,
+					#[rename="V!"]
+					#[skip_if="SevenEightNine"]
+					six: ?u128,
 				}
 			}
 		}

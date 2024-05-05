@@ -15,19 +15,19 @@ use header::gen_header;
 use request::gen_request;
 use response::gen_response;
 use reqres::gen_reqres;
-use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
+use crate::parsers::attributes::{AttrSlice, CompiledAttrs, ParamAttr, TypeAttr};
 use crate::parsers::rest_enum::EnumsSlice;
 
 /// Generates a Rust Enum based on the provided parameters.
-pub fn gen_enum_components(
-	vis        : &Visibility,
-	attributes : AttributeSlice<TypeAttribute>,
-	name       : &Ident,
-	enums      : EnumsSlice,
+pub fn gen_endpoint_enums(
+	vis   : &Visibility,
+	attrs : AttrSlice<TypeAttr>,
+	name  : &Ident,
+	enums : EnumsSlice,
 ) -> TokenStream2 {
 	let enum_fields = enums.quote_fields();
-	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
-	let quotes = compiled_attributes.quotes_ref();
+	let compiled_attrs: CompiledAttrs<TypeAttr> = attrs.into();
+	let quotes = compiled_attrs.quotes_ref();
 	
 	let output = quote! {
 		#[derive(std::fmt::Debug, serde::Serialize, serde::Deserialize)]
@@ -39,28 +39,27 @@ pub fn gen_enum_components(
 	output.into()
 }
 
-pub fn gen_component_struct(
-	vis         : &Visibility,
-	attributes  : AttributeSlice<TypeAttribute>,
-	ident       : &Ident,
-	variant     : &Option<Ident>,
-	struct_name : &str,
-	block       : StructParameterSlice,
+pub fn gen_endpoint_structs(
+	vis     : &Visibility,
+	attrs   : AttrSlice<TypeAttr>,
+	ident   : &Ident,
+	variant : &Option<Ident>,
+	name    : &Ident,
+	block   : StructParameterSlice,
 ) -> TokenStream2 {
-	let name = Ident::new(struct_name, Span::call_site());
-	
 	let rest_variant = if let Some(variant) = variant {
 		variant
 	} else {
 		ident
 	};
+	let compiled_attrs = attrs.into();
 	
 	match rest_variant.to_string().as_str() {
-		"Header"   => gen_header(&vis, attributes, &name, block),
-		"Request"  => gen_request(&vis, attributes, &name, block),
-		"Response" => gen_response(&vis, attributes, &name, block),
-		"Reqres"   => gen_reqres(&vis, attributes, &name, block),
-		"Query"    => gen_query(&vis, attributes, &name, block),
+		"Header"   => gen_header(&vis, compiled_attrs, &name, block),
+		"Request"  => gen_request(&vis, compiled_attrs, &name, block),
+		"Response" => gen_response(&vis, compiled_attrs, &name, block),
+		"Reqres"   => gen_reqres(&vis, compiled_attrs, &name, block),
+		"Query"    => gen_query(&vis, compiled_attrs, &name, block),
 		_ => {
 			panic!("Unknown REST Variant Detected: \"{}\"", ident.to_string().as_str())
 		}

@@ -5,7 +5,7 @@ use quote::{quote, quote_spanned};
 use syn::{Type, Visibility};
 use syn::spanned::Spanned;
 use crate::generators::tools::RestType;
-use crate::parsers::attributes::{Attributes, ParamAttribute};
+use crate::parsers::attributes::{Attrs, ParamAttr};
 use crate::utils::doc_str::DocString;
 
 /// # StructParameter:
@@ -22,7 +22,7 @@ use crate::utils::doc_str::DocString;
 ///     corresponding serde attributes, depending on the REST Component Type of the parent
 ///     struct.
 pub struct StructParameter {
-	pub attributes: Attributes<ParamAttribute>,
+	pub attributes: Attrs<ParamAttr>,
 	pub name: Ident,
 	pub ty: Type,
 	pub optional: bool,

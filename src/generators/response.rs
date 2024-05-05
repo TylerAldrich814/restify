@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
+use crate::parsers::attributes::{AttrSlice, CompiledAttrs, TypeAttr};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
@@ -28,16 +28,15 @@ use crate::utils::doc_str::DocString;
 /// Produces a `TokenStream2` containing the Rust code for the response struct, which
 /// can be integrated directly into procedural macro output
 pub fn gen_response(
-	vis        : &Visibility,
-	attributes : AttributeSlice<TypeAttribute>,
-	name       : &Ident,
-	fields     : StructParameterSlice,
+	vis            : &Visibility,
+	compiled_attrs : CompiledAttrs<TypeAttr>,
+	name           : &Ident,
+	fields         : StructParameterSlice,
 ) -> TokenStream2 {
 	let response_fields = fields.quote_deserialize(vis);
 	let response_builders = fields.quote_builder_fn(vis);
 	
-	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
-	let quotes = compiled_attributes.quotes_ref();
+	let quotes = compiled_attrs.quotes_ref();
 	//TODO: iterate over Command Attributes.
 	
 	let _doc = DocString::create()

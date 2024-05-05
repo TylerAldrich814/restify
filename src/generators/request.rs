@@ -2,9 +2,10 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttributeSlice, CompiledAttributes, TypeAttribute};
+use crate::parsers::attributes::{AttrCommands, AttrSlice, CompiledAttrs, TypeAttr};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
+
 /// Constructs a request struct as part of the `restify!` macro.
 ///
 /// This function generates a Rust struct tailored for REST API requests. It automatically
@@ -35,17 +36,29 @@ use crate::utils::doc_str::DocString;
 /// a `TokenStream2` representing the complete Rust source code of the struct,
 /// ready to be included in the output of a procedural macro.fn gen_request(
 pub fn gen_request(
-	vis        : &Visibility,
-	attributes : AttributeSlice<TypeAttribute>,
-	name       : &Ident,
-	fields     : StructParameterSlice,
+	vis            : &Visibility,
+	compiled_attrs : CompiledAttrs<TypeAttr>,
+	name           : &Ident,
+	fields         : StructParameterSlice,
 ) -> TokenStream2 {
 	let request_fields = fields.quote_serialize(vis);
-	let request_builders = fields.quote_builder_fn(vis);
-	
-	let compiled_attributes: CompiledAttributes<TypeAttribute> = attributes.into();
-	let quotes = compiled_attributes.quotes_ref();
+	let quotes = compiled_attrs.quotes_ref();
 	//TODO: iterate over Command Attributes.
+	
+	let mut generated_cmds: Vec<TokenStream2> = vec![];
+	for command in compiled_attrs.commands.iter() {
+		match command {
+			AttrCommands::Builder => {
+				let builders = fields.quote_builder_fn(vis);
+				generated_cmds.push(quote!(
+					impl #name {
+						#( #builders )*
+					}
+				).into());
+			}
+		}
+	}
+	
 	
 	let _doc = DocString::create()
 		.with_doc(format!("# {}", name.to_string()))
@@ -61,7 +74,6 @@ pub fn gen_request(
 		}
 		
 		impl #name {
-			#( #request_builders )*
 		}
 	};
 	output.into()

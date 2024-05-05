@@ -4,16 +4,16 @@ use proc_macro2::Ident;
 use quote::quote;
 use syn::Type;
 use proc_macro2::TokenStream as TokenStream2;
-use crate::parsers::attributes::{Attributes, CompiledAttributes, ParamAttribute, TypeAttribute};
+use crate::parsers::attributes::{Attrs, CompiledAttrs, ParamAttr, TypeAttr};
 use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 
 pub struct Enum {
-	pub attributes: Attributes<TypeAttribute>,
+	pub attributes: Attrs<TypeAttr>,
 	pub name: Ident,
 	pub enums: Vec<Enumeration>,
 }
 impl Enum {
-	pub fn with_attributes(mut self, attributes: Attributes<TypeAttribute>) -> Self {
+	pub fn with_attributes(mut self, attributes: Attrs<TypeAttr>) -> Self {
 		self.attributes = attributes;
 		return self;
 	}
@@ -30,7 +30,7 @@ pub enum EnumParameter {
 
 
 pub struct Enumeration {
-	pub attributes : Attributes<ParamAttribute>,
+	pub attributes : Attrs<ParamAttr>,
 	pub ident      : Ident,
 	pub param      : EnumParameter,
 }
@@ -99,7 +99,7 @@ impl<'s> EnumsSlice<'s> {
 		return self.iter().map(|enumeration| {
 			let Enumeration { attributes, ident, param } = enumeration;
 			
-			let compiled_attributes: CompiledAttributes<ParamAttribute> = attributes.into();
+			let compiled_attributes: CompiledAttrs<ParamAttr> = attributes.into();
 			let quotes = compiled_attributes.quotes_ref();
 			
 			//TODO: Implement quote_attributes -> Include in all quotes

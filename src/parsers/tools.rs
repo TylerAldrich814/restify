@@ -1,7 +1,7 @@
 use proc_macro2::Ident;
 use syn::Token;
 use syn::parse::{Lookahead1, ParseBuffer, ParseStream, Peek};
-use crate::parsers::valid_rest_component;
+use crate::utils::{RestMethods, RestVariant};
 
 pub struct Lookahead<'p> {
 	pub peeker: Lookahead1<'p>,
@@ -63,44 +63,18 @@ pub fn parse_struct_name_and_variant(
 	if lookahead.peek(Token![<]) {
 		input.parse::<Token![<]>()?;
 		variant = input.parse::<Ident>().and_then(|var| {
-			if !valid_rest_component(&var) {
+			if !RestVariant::is_valid(&var) {
 				return Err(syn::Error::new(var.span(), "Invalid REST Component Variant used"))
 			} else {
 				Ok(var)
 			}
 		}).ok();
 		input.parse::<Token![>]>()?;
-	} else if !valid_rest_component(&name) {
+	} else if !RestVariant::is_valid(&name) {
 		return Err(syn::Error::new(name.span(), "Invalid REST Component used for struct name"));
 	}
 	Ok((name, variant))
 }
-
-
-
-
-//TODO
-// core::result impl<T, E> Result<T, E>
-// pub fn and_then<U, F: FnOnce(T) -> Result<U, E>>(self, op: F) -> Result<U, E>
-// type SynResult<T> = syn::Result<T>;
-
-
-// // pub struct SynResult<P>(syn::Result<P>);
-// pub enum SynResult<P, E> {
-// 	Ok(P),
-// 	Err(E)
-// }
-// impl<P> SynResult<P> {
-// 	pub fn and_parse<U, F: FnOnce(P) -> SynResult<U> >(
-// 		self,
-// 		op: F
-// 	) -> SynResult<P> {
-// 		match self {
-// 			Err(syn) => SynErr(syn),
-// 			Ok(token) => op(token)
-// 		}
-// 	}
-// }
 
 /// # Extension functions for syn::Result
 /// * **and_parse_next**: A Clone of std::Result's **and_then** function.
