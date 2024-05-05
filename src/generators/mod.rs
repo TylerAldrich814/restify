@@ -15,7 +15,7 @@ use header::gen_header;
 use request::gen_request;
 use response::gen_response;
 use reqres::gen_reqres;
-use crate::parsers::attributes::{AttrSlice, CompiledAttrs, ParamAttr, TypeAttr};
+use crate::attributes::{AttrSlice, CompiledAttrs, ParamAttr, TypeAttr};
 use crate::parsers::rest_enum::EnumsSlice;
 
 /// Generates a Rust Enum based on the provided parameters.

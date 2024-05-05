@@ -1,5 +1,5 @@
 use proc_macro2::Ident;
-use crate::parsers::attributes::{Attrs, TypeAttr};
+use crate::attributes::{Attrs, TypeAttr};
 use crate::parsers::struct_parameter::StructParameter;
 
 /// # Struct:

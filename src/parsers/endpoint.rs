@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use proc_macro2::Ident;
 use syn::Visibility;
-use crate::parsers::attributes::{Attrs, TypeAttr};
+use crate::attributes::{Attrs, TypeAttr};
 use crate::parsers::endpoint_method::EndpointMethod;
 
 /// # Level 1 Rest Macro Parser

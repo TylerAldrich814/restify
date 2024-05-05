@@ -6,7 +6,7 @@ use proc_macro2::Ident;
 use syn::{braced, bracketed, LitStr, parenthesized, Token, Type, Visibility};
 use syn::parse::{Lookahead1, Parse, ParseStream};
 use syn::spanned::Spanned;
-use crate::parsers::attributes::{Attrs, ParamAttr, TypeAttr};
+use crate::attributes::{Attrs, ParamAttr, TypeAttr};
 use crate::parsers::endpoint::Endpoint;
 use crate::parsers::struct_parameter::StructParameter;
 use crate::parsers::endpoint_method::{EndpointDataType, EndpointMethod};
@@ -20,8 +20,7 @@ pub mod endpoint_method;
 pub mod rest_struct;
 pub mod struct_parameter;
 pub mod rest_enum;
-mod tools;
-pub mod attributes;
+pub mod tools;
 
 
 /// # Level 0 Rest Macro Parser

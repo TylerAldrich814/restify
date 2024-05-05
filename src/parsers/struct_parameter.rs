@@ -5,7 +5,7 @@ use quote::{quote, quote_spanned};
 use syn::{Type, Visibility};
 use syn::spanned::Spanned;
 use crate::generators::tools::RestType;
-use crate::parsers::attributes::{Attrs, ParamAttr};
+use crate::attributes::{Attrs, ParamAttr};
 use crate::utils::doc_str::DocString;
 
 /// # StructParameter:

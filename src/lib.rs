@@ -13,6 +13,7 @@ mod doc_str;
 mod rest_api;
 mod generators;
 mod reference;
+mod attributes;
 
 #[proc_macro]
 pub fn restify(input: TokenStream) -> TokenStream {

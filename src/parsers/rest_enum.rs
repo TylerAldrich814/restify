@@ -1,11 +1,10 @@
-use std::fmt;
-use std::fmt::Formatter;
+use proc_macro2::TokenStream as TokenStream2;
+use crate::attributes::{Attrs, CompiledAttrs, ParamAttr, TypeAttr};
+use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
+use std::fmt::{self, Formatter};
 use proc_macro2::Ident;
 use quote::quote;
 use syn::Type;
-use proc_macro2::TokenStream as TokenStream2;
-use crate::parsers::attributes::{Attrs, CompiledAttrs, ParamAttr, TypeAttr};
-use crate::parsers::struct_parameter::{StructParameter, StructParameterSlice};
 
 pub struct Enum {
 	pub attributes: Attrs<TypeAttr>,

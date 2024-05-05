@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::attributes::{AttrSlice, CompiledAttrs, TypeAttr};
+use crate::attributes::{AttrSlice, CompiledAttrs, TypeAttr};
 use crate::parsers::struct_parameter::StructParameterSlice;
 use crate::utils::doc_str::DocString;
 
