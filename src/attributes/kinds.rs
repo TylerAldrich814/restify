@@ -24,11 +24,10 @@ type SynError = syn::Error;
 ///     portion of the final product,
 ///     i.e., TypeAttribute::Builder - A Command that tells Restify to generate
 ///     the Builder Pattern for Type definition it's attached to.
-pub enum AttrType {
+pub enum AttrKind {
 	Quote(TokenStream2),
 	Command(AttrCommands),
 }
-
 
 #[derive(Display)]
 pub enum AttrCommands {
@@ -54,66 +53,18 @@ pub enum TypeAttr {
 	RenameAll(LitStr),
 	Builder,
 }
-#[derive(Clone)]
-pub enum ParamAttr {
-	Rename(LitStr),
-	Default(Option<LitStr>),
-	SkipIf(LitStr),
-	SerializeWith,
-	DeserializeWith
-}
-impl ParamAttr {
-	/// Returns true is self is struct-specific.
-	///
-	/// # TODO:
-	/// Only a temporary solution.
-	/// I need to make this more dynamic, where I wouldn't have to continuously update this
-	/// method whenever a new ParamAttribute is added..
-	/// But, at this moment, there only exists one non-struct specific Attribute, 'rename'
-	pub fn struct_specific(&self) -> (bool, Span) {
-		return match self {
-			ParamAttr::Rename(p)          => (false, p.span()),
-			ParamAttr::Default(Some(opt)) => (true, opt.span()),
-			ParamAttr::Default(_)         => (true, format!("{}", self).span()),
-			ParamAttr::SkipIf(m)          => (true, m.span()),
-			ParamAttr::SerializeWith      => (true, Span::call_site()),
-			ParamAttr::DeserializeWith    => (true, Span::call_site()),
-		}
-		// if let ParamAttribute::Rename(_) = self{
-		// 	return false;
-		// }
-		// return true;
-	}
-}
-
 impl Attribute for TypeAttr {
-	fn quote(&self) -> AttrType {
+	fn quote(&self) -> AttrKind {
 		return match self {
 			TypeAttr::Derive(derives)
-			=> AttrType::Quote(quote! {#[derive( #( #derives, )* )]}),
+			=> AttrKind::Quote(quote! {#[derive( #( #derives, )* )]}),
 			TypeAttr::RenameAll(pattern)
-			=> AttrType::Quote(quote! {#[serde(rename_all = #pattern)]}),
+			=> AttrKind::Quote(quote! {#[serde(rename_all = #pattern)]}),
 			TypeAttr::Builder
-			=> AttrType::Command(AttrCommands::Builder)
+			=> AttrKind::Command(AttrCommands::Builder)
 		}
 	}
 }
-impl Attribute for ParamAttr {
-	fn quote(&self) -> AttrType {
-		return match self {
-			ParamAttr::Rename(name)
-			=> AttrType::Quote(quote! {#[serde(reanme = #name)]}),
-			ParamAttr::Default(Some(def))
-			=> AttrType::Quote(quote! {#[serde(default = #def)]}),
-			ParamAttr::Default(_)
-			=> AttrType::Quote(quote! {#[serde(default)]}),
-			ParamAttr::SkipIf(method)
-			=> AttrType::Quote(quote! {#[serde(skip_serializing_if = #method)]}),
-			_ => panic!("NEEDS IMPLEMENTED"),
-		}
-	}
-}
-
 impl Parse for TypeAttr {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = crate::parsers::tools::Lookahead::new(&input);
@@ -185,6 +136,53 @@ impl Parse for TypeAttr {
 		};
 	}
 }
+
+#[derive(Clone)]
+pub enum ParamAttr {
+	Rename(LitStr),
+	Default(Option<LitStr>),
+	SkipIf(LitStr),
+	SerializeWith,
+	DeserializeWith
+}
+impl ParamAttr {
+	/// Returns true is self is struct-specific.
+	///
+	/// # TODO:
+	/// Only a temporary solution.
+	/// I need to make this more dynamic, where I wouldn't have to continuously update this
+	/// method whenever a new ParamAttribute is added..
+	/// But, at this moment, there only exists one non-struct specific Attribute, 'rename'
+	pub fn struct_specific(&self) -> (bool, Span) {
+		return match self {
+			ParamAttr::Rename(p)          => (false, p.span()),
+			ParamAttr::Default(Some(opt)) => (true, opt.span()),
+			ParamAttr::Default(_)         => (true, format!("{}", self).span()),
+			ParamAttr::SkipIf(m)          => (true, m.span()),
+			ParamAttr::SerializeWith      => (true, Span::call_site()),
+			ParamAttr::DeserializeWith    => (true, Span::call_site()),
+		}
+		// if let ParamAttribute::Rename(_) = self{
+		// 	return false;
+		// }
+		// return true;
+	}
+}
+impl Attribute for ParamAttr {
+	fn quote(&self) -> AttrKind {
+		return match self {
+			ParamAttr::Rename(name)
+			=> AttrKind::Quote(quote! {#[serde(reanme = #name)]}),
+			ParamAttr::Default(Some(def))
+			=> AttrKind::Quote(quote! {#[serde(default = #def)]}),
+			ParamAttr::Default(_)
+			=> AttrKind::Quote(quote! {#[serde(default)]}),
+			ParamAttr::SkipIf(method)
+			=> AttrKind::Quote(quote! {#[serde(skip_serializing_if = #method)]}),
+			_ => panic!("NEEDS IMPLEMENTED"),
+		}
+	}
+}
 impl Parse for ParamAttr {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		return match input.parse::<Ident>()?.to_string().as_str() {
@@ -243,6 +241,8 @@ impl Parse for ParamAttr {
 		};
 	}
 }
+
+// ->> Other Implementations for TypeAttr & ParamAttr
 impl Display for ParamAttr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		return match self {

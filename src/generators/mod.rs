@@ -1,22 +1,21 @@
+use crate::parsers::struct_parameter::StructParameterSlice;
+use crate::attributes::{AttrSlice, CompiledAttrs, ParamAttr, TypeAttr};
+use crate::parsers::rest_enum::EnumsSlice;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use syn::Visibility;
-use crate::parsers::struct_parameter::StructParameterSlice;
+use query::gen_query;
+use header::gen_header;
+use request::gen_request;
+use response::gen_response;
+use reqres::gen_reqres;
 pub mod query;
 pub mod header;
 pub mod request;
 pub mod response;
 pub mod reqres;
 pub mod tools;
-
-use query::gen_query;
-use header::gen_header;
-use request::gen_request;
-use response::gen_response;
-use reqres::gen_reqres;
-use crate::attributes::{AttrSlice, CompiledAttrs, ParamAttr, TypeAttr};
-use crate::parsers::rest_enum::EnumsSlice;
 
 /// Generates a Rust Enum based on the provided parameters.
 pub fn gen_endpoint_enums(

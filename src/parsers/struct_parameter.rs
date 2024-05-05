@@ -28,7 +28,6 @@ pub struct StructParameter {
 	pub optional: bool,
 }
 
-
 /// # A Slice of a Vec<StructParameter>
 ///
 /// # Example:

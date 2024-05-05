@@ -22,6 +22,10 @@ impl<A: Attribute> Attrs<A> {
 	pub fn iter(&self) -> AttrSlice<A> {
 		return AttrSlice::new(self.0.as_slice());
 	}
+	
+	/// Takes a Parsed Attrs and converts it into a CompiledAttrs.
+	/// I.e., iterates over all parsed Attributes, and organizes
+	/// them based on their AttributeKind, **Command** vs. **Quotable**
 	pub fn compile(&self) -> CompiledAttrs<A> {
 		let slice = self.iter();
 		return slice.into();

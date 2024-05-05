@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::attributes::{AttrCommands, Attribute, Attrs, AttrSlice, ParamAttr, TypeAttr};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use crate::attributes::kinds::AttrType;
+use crate::attributes::kinds::AttrKind;
 use crate::generators::tools::RestType;
 
 /// # Compiled Attributes: Quotes and Commands
@@ -101,8 +101,8 @@ impl<'s, A: Attribute> From<AttrSlice<'s, A>> for CompiledAttrs<A> {
 			.iter()
 			.fold((vec![], vec![]), |(mut quotes, mut commands), attribute| {
 				match attribute.quote() {
-					AttrType::Quote(quote) => quotes.push(quote),
-					AttrType::Command(command) => commands.push(command)
+					AttrKind::Quote(quote)     => quotes.push(quote),
+					AttrKind::Command(command) => commands.push(command)
 				}
 				(quotes, commands)
 			});
