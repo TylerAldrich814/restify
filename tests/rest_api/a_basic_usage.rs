@@ -20,29 +20,6 @@ use rest_macros::restify;
 /// * [x] Implement an Enumeration Compiler.
 ///
 /// # Restify-Specific Commands:
-/// * **\#[rest:attribute:command = "argument"]**
-/// * [ ] A Restify Rename Attribute Command that works like Serde's rename attributes.
-///       Example: If a user wants the name of their endpoint to be different from what
-///       Restify would make.
-///       In this quick example. '#\[rest:rename={param: "user_ids"}]'
-///       This Command attribute would have to dynamically parse a variety of different elements.
-///       I would also have to find a solution for communicating these settings back to the
-///       Generator when in the generation phase.
-/// ```ignore
-/// restify!{
-///   [pub MyEndpoint: {
-///     GET "/api/user/{id}/pictures" => {
-///       #[rename_all="CamelCase"]
-///       #[rest:rename={ param: "user_ids", type: "MyUserIDs" }]
-///         -- or something like this --
-///       #[rest:rename:param = ""]
-///       struct MyUserIds<Request> {
-///         ids: Vec<u64>
-///       }
-///     }
-///   }]
-/// }
-/// ```
 /// * [ ] ``` #[rest:output="./.."] ```
 ///       Filepath Commands: Creating a Restify Attribute Command that will tell Restify where
 ///       to store the generated code at. Should only be used at top-level, i.e., Endpoint
@@ -79,7 +56,7 @@ use rest_macros::restify;
 /// * [ ] ``` #[serialize_with] ```
 ///   - **Purpose**: Allow custom serialization for complex types that don’t necessarily
 ///       serialize well with the default serializers.
-///   - **Use Case**:  Users can define custom serialization logic for specific fields that need
+///   - **Use Case**: Users can define custom serialization logic for specific fields that need
 ///       special handling.
 ///   - **Example**: Serializing a complex nested object or an object containing dates that
 ///       need to be formatted specifically.
@@ -143,6 +120,8 @@ restify!{
 				#[rename="Rename"]
 				ids: Vec<u64>,
 				names: Vec<String>,
+        #[validate(required, range(min: 19, max: 115))]
+				age: u32
 			}
 			#[derive(Clone)]
 			#[builder]

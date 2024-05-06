@@ -8,9 +8,10 @@ use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use crate::attributes::Attribute;
 use crate::attributes::command::RunCommand;
+use crate::attributes::commands::{ValidateChain, ValidateCmds};
 use crate::parsers::tools::SynExtent;
+use crate::rest_api::SynError;
 
-type SynError = syn::Error;
 
 /// # AttrType:
 /// A Wrapper Enumeration around Restify's Generation step for Attributes.
@@ -30,10 +31,12 @@ pub enum AttrKind {
 	Command(AttrCommands),
 }
 
-#[derive(Display)]
+#[derive(Clone, Display)]
 pub enum AttrCommands {
 	/// Builder: Compile Builder Style for current Type
 	Builder,
+	/// Validate
+	Validate(ValidateCmds),
 }
 
 impl AttrCommands {
@@ -49,17 +52,14 @@ impl AttrCommands {
 					).into()
 				}
 			)),
+			AttrCommands::Validate(val) => todo!(),
 		}
 	}
 }
 
-impl From<&TypeAttr> for Option<AttrCommands> {
-	fn from(attr: &TypeAttr) -> Self {
-		match attr {
-			TypeAttr::Builder => Some(AttrCommands::Builder),
-			_ => None, // Until I add more AttrCommands
-		}
-	}
+#[derive(Clone)]
+pub enum EndpointAttr {
+	//todo
 }
 
 #[derive(Clone)]
@@ -67,16 +67,32 @@ pub enum TypeAttr {
 	Derive(Vec<Ident>),
 	RenameAll(LitStr),
 	Builder,
+	Validate(ValidateChain<TypeAttr>),
 }
+
+impl From<&TypeAttr> for Option<AttrCommands> {
+	fn from(attr: &TypeAttr) -> Self {
+		match attr {
+			TypeAttr::Builder => Some(AttrCommands::Builder),
+			TypeAttr::Validate(val) => Some(AttrCommands::Validate(val.into())),
+			_ => None,
+		}
+	}
+}
+
+
 impl Attribute for TypeAttr {
 	fn quote(&self) -> AttrKind {
+		let t: Option<AttrCommands> = self.into();
 		return match self {
 			TypeAttr::Derive(derives)
 			=> AttrKind::Quote(quote! {#[derive( #( #derives, )* )]}),
 			TypeAttr::RenameAll(pattern)
 			=> AttrKind::Quote(quote! {#[serde(rename_all = #pattern)]}),
 			TypeAttr::Builder
-			=> AttrKind::Command(AttrCommands::Builder)
+			=> AttrKind::Command(AttrCommands::Builder),
+			TypeAttr::Validate(val)
+			=> AttrKind::Command(AttrCommands::Validate(val.into())),
 		}
 	}
 }
@@ -126,7 +142,7 @@ impl Parse for TypeAttr {
 							syn.span(),
 							"The RenameAll Attribute Command must be proceeded by a '=' Token."
 						))
-						.and_parse_next(|_| {
+						.and_next(|_| {
 							input.parse::<LitStr>()
 						})
 						.map_err(|syn| SynError::new(
@@ -144,6 +160,11 @@ impl Parse for TypeAttr {
 				}
 				return Ok(TypeAttr::Builder);
 			}
+			"validate" => {
+				let actions;
+				parenthesized!(actions in input);
+				return Ok(TypeAttr::Validate(ValidateChain::parse(&actions)?));
+			}
 			unknown => Err(SynError::new(
 				input.span(),
 				&format!("TypeAttribute: Unknown Identifier found: \"{}\"", unknown)
@@ -157,6 +178,7 @@ pub enum ParamAttr {
 	Rename(LitStr),
 	Default(Option<LitStr>),
 	SkipIf(LitStr),
+	Validate(ValidateChain<ParamAttr>),
 	SerializeWith,
 	DeserializeWith
 }
@@ -174,13 +196,10 @@ impl ParamAttr {
 			ParamAttr::Default(Some(opt)) => (true, opt.span()),
 			ParamAttr::Default(_)         => (true, format!("{}", self).span()),
 			ParamAttr::SkipIf(m)          => (true, m.span()),
+			ParamAttr::Validate(val)      => (false, Span::call_site()),
 			ParamAttr::SerializeWith      => (true, Span::call_site()),
 			ParamAttr::DeserializeWith    => (true, Span::call_site()),
 		}
-		// if let ParamAttribute::Rename(_) = self{
-		// 	return false;
-		// }
-		// return true;
 	}
 }
 impl Attribute for ParamAttr {
@@ -194,7 +213,7 @@ impl Attribute for ParamAttr {
 			=> AttrKind::Quote(quote! {#[serde(default)]}),
 			ParamAttr::SkipIf(method)
 			=> AttrKind::Quote(quote! {#[serde(skip_serializing_if = #method)]}),
-			_ => panic!("NEEDS IMPLEMENTED"),
+			_ => AttrKind::Quote(quote!()),
 		}
 	}
 }
@@ -208,7 +227,7 @@ impl Parse for ParamAttr {
 							syn.span(),
 							"ParamAttribute::Rename - Identifier and Argument should be seperated by the '=' token"
 						))
-						.and_parse_next(|_| {
+						.and_next(|_| {
 							input.parse::<LitStr>()
 						})
 						.map_err(|syn| SynError::new(
@@ -217,6 +236,15 @@ impl Parse for ParamAttr {
 						))?
 				));
 			}
+			"validate" => {
+				let actions;
+				parenthesized!(actions in input);
+				let validate = ValidateChain::parse(&actions)?;
+				println!("VALIDATE: {:?}", validate);
+				return Ok(ParamAttr::Validate(
+					validate
+				))
+			},
 			"skip_if" => {
 				return Ok(ParamAttr::SkipIf(
 					input.parse::<Token![=]>()
@@ -224,7 +252,7 @@ impl Parse for ParamAttr {
 							syn.span(),
 							"ParamAttribute::SkipIf - Identifier and Argument should be seperated by the '=' token"
 						))
-						.and_parse_next(|_| {
+						.and_next(|_| {
 							input.parse::<LitStr>()
 						})
 						.map_err(|syn| SynError::new(
@@ -242,7 +270,7 @@ impl Parse for ParamAttr {
 								syn.span(),
 								"ParamAttribute::Default - Content within default attribute was detected. But missing the '=' token."
 							))
-							.and_parse_next(|_| {
+							.and_next(|_| {
 								input.parse::<LitStr>()
 							})
 							.map_err(|syn| SynError::new(
@@ -262,17 +290,19 @@ impl Display for ParamAttr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		return match self {
 			ParamAttr::Rename(p)
-			=> write!(f, "#[serde(rename=\"{}\")]", p.value()),
+				=> write!(f, "#[serde(rename=\"{}\")]", p.value()),
 			ParamAttr::Default(Some(opt))
-			=> write!(f, "#[serde(default=\"{}\")]", opt.value()),
+				=> write!(f, "#[serde(default=\"{}\")]", opt.value()),
 			ParamAttr::Default(_)
-			=> write!(f, "#[serde(default)]"),
+				=> write!(f, "#[serde(default)]"),
 			ParamAttr::SkipIf(m)
-			=> write!(f, "#[serde(skip_serializing_if=\"{}\")]", m.value()),
+				=> write!(f, "#[serde(skip_serializing_if=\"{}\")]", m.value()),
+			ParamAttr::Validate(val)
+				=> write!(f, "TODO"),
 			ParamAttr::SerializeWith
-			=> write!(f, "TODO"),
+				=> write!(f, "TODO"),
 			ParamAttr::DeserializeWith
-			=> write!(f, "TODO"),
+				=> write!(f, "TODO"),
 		}
 	}
 }
@@ -306,6 +336,8 @@ impl Debug for TypeAttr {
 			=> write!(f, "#[serde(rename_all=\"{}\")]", pattern.value()),
 			TypeAttr::Builder
 			=> write!(f, "<RESTIFY: Builder-Pattern = TRUE>"),
+			TypeAttr::Validate(_)
+			=> write!(f, "VALIDATE: TODO")
 		}
 	}
 }

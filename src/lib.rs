@@ -16,6 +16,7 @@ mod reference;
 mod attributes;
 mod failed_command;
 
+
 #[proc_macro]
 pub fn restify(input: TokenStream) -> TokenStream {
 	compile_rest(input)

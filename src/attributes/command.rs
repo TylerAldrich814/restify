@@ -7,3 +7,4 @@ type BuilderInput<'s> = (&'s Visibility, &'s Ident, &'s StructParameterSlice<'s>
 pub enum RunCommand<'s> {
 	Builder(Box<dyn FnOnce(BuilderInput<'s>) -> TokenStream2>),
 }
+

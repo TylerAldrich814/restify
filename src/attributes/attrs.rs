@@ -1,7 +1,7 @@
 use proc_macro2::Span;
 use syn::parse::{Parse, ParseStream};
 use syn::{bracketed, Token};
-use crate::attributes::{Attribute, AttrSlice, CompiledAttrs, ParamAttr, TypeAttr};
+use crate::attributes::{Attribute, AttrSlice, CompiledAttrs, ParamAttr, parse_attribute, TypeAttr};
 
 pub struct Attrs<A: Attribute>(pub Vec<A>);
 
@@ -59,15 +59,5 @@ impl<A: Attribute> Parse for Attrs<A> {
 		}
 		return Ok(Attrs(attributes));
 	}
-}
-pub fn parse_attribute<A: Attribute>(input: ParseStream) -> syn::Result<Option<A>> {
-	let lookahead = crate::parsers::tools::Lookahead::new(&input);
-	if !lookahead.peek(Token![#]) {
-		return Ok(None);
-	}
-	input.parse::<Token![#]>()?;
-	let content;
-	bracketed!(content in input);
-	return Ok(Some(content.parse::<A>()?));
 }
 

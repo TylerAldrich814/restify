@@ -81,11 +81,11 @@ pub fn parse_struct_name_and_variant(
 ///    Only difference being that this version is implemented for syn::Result and will
 ///    return a syn::Result.
 pub trait SynExtent<T>{
-	fn and_parse_next<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P>;
+	fn and_next<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P>;
 }
 
 impl<T> SynExtent<T> for syn::Result<T> {
-	fn and_parse_next<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P> {
+	fn and_next<P, F: FnOnce(T) -> syn::Result<P>>(self, op: F) -> syn::Result<P> {
 		match self {
 			Err(syn) => Err(syn),
 			Ok(tok) => op(tok)

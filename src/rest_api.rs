@@ -11,6 +11,8 @@ use crate::parsers::RestEndpoints;
 use crate::utils::{camelCase, camelCaseIdent, create_type_identifier, snake_case, snake_case_ident};
 use crate::utils::fmt::{rust_fmt_quotes};
 
+pub type SynError = syn::Error;
+
 /// Parses `restify!` TokenStream then compiles RESTful Client code.
 pub fn compile_rest(input: TokenStream) -> TokenStream {
 	let RestEndpoints{
@@ -99,10 +101,10 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 			#( #methods )*
 		};
 		
-		rust_fmt_quotes(
-			&endpoint_name.to_string(),
-			&methods
-		);
+		// rust_fmt_quotes(
+		// 	&endpoint_name.to_string(),
+		// 	&methods
+		// );
 		
 		output.into()
 	}).collect();
