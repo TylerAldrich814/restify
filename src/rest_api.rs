@@ -101,10 +101,10 @@ pub fn compile_rest(input: TokenStream) -> TokenStream {
 			#( #methods )*
 		};
 		
-		// rust_fmt_quotes(
-		// 	&endpoint_name.to_string(),
-		// 	&methods
-		// );
+		rust_fmt_quotes(
+			&endpoint_name.to_string(),
+			&methods
+		);
 		
 		output.into()
 	}).collect();

@@ -37,6 +37,8 @@ pub enum AttrCommands {
 	Builder,
 	/// Validate
 	Validate(ValidateCmds),
+	/// Async
+	Async,
 }
 
 impl AttrCommands {
@@ -53,13 +55,18 @@ impl AttrCommands {
 				}
 			)),
 			AttrCommands::Validate(val) => todo!(),
+			AttrCommands::Async => todo!("TODO: Implement a method for telling Restify to Make Type methods async. and to use Asynchronous HTTP methods"),
 		}
 	}
 }
 
+/// # Endpoint Attributes:
+/// Endpoint Specific: These will be Attributes that will tell Restify how to parse and
+/// generate the Endpoints themselves.
 #[derive(Clone)]
 pub enum EndpointAttr {
-	//todo
+	Export(LitStr),
+	
 }
 
 #[derive(Clone)]
@@ -68,6 +75,7 @@ pub enum TypeAttr {
 	RenameAll(LitStr),
 	Builder,
 	Validate(ValidateChain<TypeAttr>),
+	Async,
 }
 
 impl From<&TypeAttr> for Option<AttrCommands> {
@@ -75,6 +83,7 @@ impl From<&TypeAttr> for Option<AttrCommands> {
 		match attr {
 			TypeAttr::Builder => Some(AttrCommands::Builder),
 			TypeAttr::Validate(val) => Some(AttrCommands::Validate(val.into())),
+			TypeAttr::Async => Some(AttrCommands::Async),
 			_ => None,
 		}
 	}
@@ -91,8 +100,7 @@ impl Attribute for TypeAttr {
 			=> AttrKind::Quote(quote! {#[serde(rename_all = #pattern)]}),
 			TypeAttr::Builder
 			=> AttrKind::Command(AttrCommands::Builder),
-			TypeAttr::Validate(val)
-			=> AttrKind::Command(AttrCommands::Validate(val.into())),
+			_ => AttrKind::Quote(quote!())
 		}
 	}
 }
@@ -100,6 +108,9 @@ impl Parse for TypeAttr {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let mut lookahead = crate::parsers::tools::Lookahead::new(&input);
 		return match input.parse::<Ident>()?.to_string().as_str() {
+			"async" => {
+				return Ok(TypeAttr::Async);
+			},
 			"derive" => {
 				if input.is_empty(){
 					return Err(SynError::new(input.span(), "TypeAttribute::Derive requires additional Identifiers"));
@@ -324,20 +335,22 @@ impl Debug for ParamAttr {
 impl Debug for TypeAttr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
+			TypeAttr::Async
+			=> write!(f, "#[async]\n"),
 			TypeAttr::Derive(s)
 			=> write!(f,
-			          "#[derive({})]",
+			          "#[derive({})]\n",
 			          s.iter()
 				          .map(|d| d.to_string())
 				          .collect::<Vec<_>>()
 				          .join(",")
 			),
 			TypeAttr::RenameAll(pattern)
-			=> write!(f, "#[serde(rename_all=\"{}\")]", pattern.value()),
+			=> write!(f, "#[serde(rename_all=\"{}\")]\n", pattern.value()),
 			TypeAttr::Builder
-			=> write!(f, "<RESTIFY: Builder-Pattern = TRUE>"),
+			=> write!(f, "<RESTIFY: Builder-Pattern = TRUE>\n"),
 			TypeAttr::Validate(_)
-			=> write!(f, "VALIDATE: TODO")
+			=> write!(f, "VALIDATE: TODO\n")
 		}
 	}
 }
