@@ -134,6 +134,16 @@ use rest_macros::restify;
 ///       RESTMethod > Endpoint > Global
 ///       If the RESTMethod host is missing, then Restify will check to see if Endpoint
 ///       has a Host declaration, and so forth.
+///
+/// # Formatting Check
+/// * [ ] Restify deals with parsing formatting strings that will be used with Rust within the
+///       generated code. A Few areas that already parse for format string are the URI field and
+///       now the Log Attribute. I've already developed an algorithm for testing if a format
+///       string contains {value} || {} formatting. Where it also tests if the user included
+///       literal curly braces; "{{{my_val}}}".
+///       This method is currently in src/doc_str.rs fn 'parse_input_string'.
+///       The logic for this should be pulled out and placed into a format detection algorithm, and
+///       should be expanded on testing for ' " ' literals as well.
 fn todos(){}
 
 restify!{
@@ -142,6 +152,10 @@ restify!{
 		PUT "/api/vec/{ids}" => {
 			#[rename_all="RenameAll"]
 			#[builder]
+			#[log(
+				info="MyIDs Request has been sent",
+				error="Failed to make MyIDs request: {error"
+			)]
 			struct MyIDs<Request> {
 				#[rename="Rename"]
 				ids: Vec<u64>,

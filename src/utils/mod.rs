@@ -1,5 +1,6 @@
 pub mod fmt;
 pub mod doc_str;
+pub mod format_string;
 
 use proc_macro::Span;
 use std::io::Write;

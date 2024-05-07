@@ -6,9 +6,10 @@ use quote::quote;
 use syn::{LitStr, parenthesized, Token};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
+use log::log;
 use crate::attributes::Attribute;
 use crate::attributes::command::RunCommand;
-use crate::attributes::commands::{ValidateChain, ValidateCmds};
+use crate::attributes::commands::{Log, ValidateChain, ValidateCmds};
 use crate::parsers::tools::SynExtent;
 use crate::rest_api::SynError;
 
@@ -31,14 +32,37 @@ pub enum AttrKind {
 	Command(AttrCommands),
 }
 
+/// # AttrCommands:
+/// Level 2 of Restify's Attribute Parser.
+/// [AttrCommands] is a part of Restify's Attribute organization step.
+/// Where, after all, current attributes have been parsed.
+/// Restify then splits the attributes into two groups;
+///   - Quotable: Attributes meant to be included in the generated code.
+///   - Commands: Attributes meant to guide Restify during the generation
+///     process.
+///     Command Attributes might also be added to the final code, but in a more dynamic way.
+///     I.e., telling Restify to implement special methods for a type.
+///
+/// # Commands:
+///   - ``` #[async] ```
+///     - **Async**: Tells Restify to generate the parent type asynchronously
+///   - ``` #[builder] ```
+///     - **Builder**: Tells Restify to generate the Builder Pattern for the parent Type.
+///   -  ``` #[log(info="..")] ```
+///      - **Log([Log])**:  Tells Restify to generate logging for either the parent
+///      type or parameter.
+///   - Validate([ValidateCmds]) ``` #[validate(required,..)] ```: Tells Restify to generate specific
+///     validation checks for the parent type or parameter.
 #[derive(Clone, Display)]
 pub enum AttrCommands {
-	/// Builder: Compile Builder Style for current Type
-	Builder,
-	/// Validate
-	Validate(ValidateCmds),
 	/// Async
 	Async,
+	/// Builder: Compile Builder Style for current Type
+	Builder,
+	/// Log
+	Log(Log),
+	/// Validate
+	Validate(ValidateCmds),
 }
 
 impl AttrCommands {
@@ -54,8 +78,12 @@ impl AttrCommands {
 					).into()
 				}
 			)),
-			AttrCommands::Validate(val) => todo!(),
-			AttrCommands::Async => todo!("TODO: Implement a method for telling Restify to Make Type methods async. and to use Asynchronous HTTP methods"),
+			AttrCommands::Validate(val)
+				=> todo!(),
+			AttrCommands::Async
+			  => todo!("TODO: Implement a method for telling Restify to Make Type methods async. and to use Asynchronous HTTP methods"),
+			AttrCommands::Log(log)
+			  => todo!("Todo: Take Log's internal data, and tell Restify how to incorporate Logging into the generate code")
 		}
 	}
 }
@@ -66,7 +94,6 @@ impl AttrCommands {
 #[derive(Clone)]
 pub enum EndpointAttr {
 	Export(LitStr),
-	
 }
 
 #[derive(Clone)]
@@ -76,14 +103,20 @@ pub enum TypeAttr {
 	Builder,
 	Validate(ValidateChain<TypeAttr>),
 	Async,
+	Log(Log),
 }
 
 impl From<&TypeAttr> for Option<AttrCommands> {
 	fn from(attr: &TypeAttr) -> Self {
 		match attr {
-			TypeAttr::Builder => Some(AttrCommands::Builder),
-			TypeAttr::Validate(val) => Some(AttrCommands::Validate(val.into())),
-			TypeAttr::Async => Some(AttrCommands::Async),
+			TypeAttr::Builder
+				=> Some(AttrCommands::Builder),
+			TypeAttr::Validate(val)
+				=> Some(AttrCommands::Validate(val.into())),
+			TypeAttr::Async
+				=> Some(AttrCommands::Async),
+			TypeAttr::Log(log)
+				=> Some(AttrCommands::Log(log.clone())),
 			_ => None,
 		}
 	}
@@ -143,7 +176,6 @@ impl Parse for TypeAttr {
 					}
 					sub_content.parse::<Token![,]>()?;
 				}
-				
 				return Ok(TypeAttr::Derive(derives));
 			}
 			"rename_all" => {
@@ -176,6 +208,9 @@ impl Parse for TypeAttr {
 				parenthesized!(actions in input);
 				return Ok(TypeAttr::Validate(ValidateChain::parse(&actions)?));
 			}
+			"log" => {
+				return Ok(TypeAttr::Log(Log::parse_log(&input)?));
+			}
 			unknown => Err(SynError::new(
 				input.span(),
 				&format!("TypeAttribute: Unknown Identifier found: \"{}\"", unknown)
@@ -190,6 +225,7 @@ pub enum ParamAttr {
 	Default(Option<LitStr>),
 	SkipIf(LitStr),
 	Validate(ValidateChain<ParamAttr>),
+	Log(Log),
 	SerializeWith,
 	DeserializeWith
 }
@@ -203,11 +239,13 @@ impl ParamAttr {
 	/// But, at this moment, there only exists one non-struct specific Attribute, 'rename'
 	pub fn struct_specific(&self) -> (bool, Span) {
 		return match self {
-			ParamAttr::Rename(p)          => (false, p.span()),
 			ParamAttr::Default(Some(opt)) => (true, opt.span()),
 			ParamAttr::Default(_)         => (true, format!("{}", self).span()),
 			ParamAttr::SkipIf(m)          => (true, m.span()),
-			ParamAttr::Validate(val)      => (false, Span::call_site()),
+			ParamAttr::Rename(p)          => (false, p.span()),
+			// _                             => (false, Span::call_site()),
+			ParamAttr::Validate(_)      => (false, Span::call_site()),
+			ParamAttr::Log(_)           => (false, Span::call_site()),
 			ParamAttr::SerializeWith      => (true, Span::call_site()),
 			ParamAttr::DeserializeWith    => (true, Span::call_site()),
 		}
@@ -272,6 +310,9 @@ impl Parse for ParamAttr {
 						))?
 				));
 			}
+			"log" => {
+				return Ok(ParamAttr::Log(Log::parse_log(&input)?));
+			},
 			"default" => {
 				return Ok(ParamAttr::Default({
 					if input.is_empty(){ None }
@@ -308,6 +349,8 @@ impl Display for ParamAttr {
 				=> write!(f, "#[serde(default)]"),
 			ParamAttr::SkipIf(m)
 				=> write!(f, "#[serde(skip_serializing_if=\"{}\")]", m.value()),
+			ParamAttr::Log(log)
+				=> write!(f, "{}", log),
 			ParamAttr::Validate(val)
 				=> write!(f, "TODO"),
 			ParamAttr::SerializeWith
@@ -336,21 +379,23 @@ impl Debug for TypeAttr {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
 			TypeAttr::Async
-			=> write!(f, "#[async]\n"),
+				=> write!(f, "#[async]\n"),
 			TypeAttr::Derive(s)
-			=> write!(f,
-			          "#[derive({})]\n",
-			          s.iter()
-				          .map(|d| d.to_string())
-				          .collect::<Vec<_>>()
-				          .join(",")
-			),
+				=> write!(f,
+									"#[derive({})]\n",
+									s.iter()
+										.map(|d| d.to_string())
+										.collect::<Vec<_>>()
+										.join(",")
+				),
 			TypeAttr::RenameAll(pattern)
-			=> write!(f, "#[serde(rename_all=\"{}\")]\n", pattern.value()),
+				=> write!(f, "#[serde(rename_all=\"{}\")]\n", pattern.value()),
 			TypeAttr::Builder
-			=> write!(f, "<RESTIFY: Builder-Pattern = TRUE>\n"),
+				=> write!(f, "<RESTIFY: Builder-Pattern = TRUE>\n"),
 			TypeAttr::Validate(_)
-			=> write!(f, "VALIDATE: TODO\n")
+				=> write!(f, "VALIDATE: TODO\n"),
+			TypeAttr::Log(log)
+				=> write!(f, "{}", log)
 		}
 	}
 }

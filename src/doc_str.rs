@@ -115,7 +115,6 @@ impl DocString {
 		let mut in_brace = false;
 		let mut cur_identifier = String::new();
 		while let Some(ch) = chars.next() {
-			// println!("\"{stream}\"");
 			match ch {
 				'{' => {
 					let peek = chars.peek();

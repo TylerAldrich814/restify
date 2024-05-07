@@ -32,7 +32,9 @@ pub trait Attribute: Parse + Debug{
 ///  - Ok(Some(A: [Attribute])): After successfully parsing an Attribute.
 ///  - Ok(None): Successfully detected that the next token is not the beginning of a new Attribute
 ///  - Err(syn::Error): Found that the next token is the beginning of a new Attribute, but failed to parse it.
-pub fn parse_attribute<A: Attribute>(input: ParseStream) -> syn::Result<Option<A>> {
+pub fn parse_attribute<A: Attribute>(
+	input: ParseStream
+) -> syn::Result<Option<A>> {
 	let lookahead = Lookahead::new(&input);
 	if !lookahead.peek(Token![#]) {
 		return Ok(None);
