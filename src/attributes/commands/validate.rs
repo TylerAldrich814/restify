@@ -184,8 +184,7 @@ pub struct ValidateChain<Kind>{
 	pub actions: Vec<ValidateAction<Kind>>,
 	_kind: PhantomData<Kind>
 }
-impl<Kind> ValidateChain<Kind>
-	where ValidateAction<Kind>: Parse
+impl<Kind> ValidateChain<Kind> where ValidateAction<Kind>: Parse
 {
 fn parse_chain(input: ParseStream) -> syn::Result<Self> {
 		let mut actions = vec![];
@@ -218,21 +217,6 @@ impl Parse for ValidateChain<TypeAttr>{
 impl Parse for ValidateChain<ParamAttr>{
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		return ValidateChain::parse_chain(&input);
-	}
-}
-
-#[derive(Clone)]
-pub struct ValidateCmds {
-}
-impl From<&ValidateChain<ParamAttr>> for ValidateCmds {
-	fn from(value: &ValidateChain<ParamAttr>) -> Self {
-		todo!()
-	}
-}
-
-impl From<&ValidateChain<TypeAttr>> for ValidateCmds {
-	fn from(value: &ValidateChain<TypeAttr>) -> Self {
-		todo!()
 	}
 }
 

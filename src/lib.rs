@@ -1,7 +1,8 @@
+#![feature(try_trait_v2)]
+#![feature(try_trait_v2_residual)]
 #![allow(unused)]
 extern crate proc_macro;
 extern crate proc_macro2;
-extern crate core;
 
 use proc_macro::TokenStream;
 use crate::doc_str::compile_doc_str;
@@ -15,6 +16,7 @@ mod generators;
 mod reference;
 mod attributes;
 mod failed_command;
+mod parse;
 
 
 #[proc_macro]

@@ -100,7 +100,7 @@ impl<'s, A: Attribute> From<AttrSlice<'s, A>> for CompiledAttrs<A> {
 		): (Vec<TokenStream2>, Vec<AttrCommands>) = attributes
 			.iter()
 			.fold((vec![], vec![]), |(mut quotes, mut commands), attribute| {
-				match attribute.quote() {
+				match attribute.expand() {
 					AttrKind::Quote(quote)     => quotes.push(quote),
 					AttrKind::Command(command) => commands.push(command)
 				}

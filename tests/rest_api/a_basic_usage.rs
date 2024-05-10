@@ -82,7 +82,7 @@ use rest_macros::restify;
 ///   - **Example**: A command that specifies the number of retries and the conditions under
 ///       which retries should occur.
 /// * [ ] ``` #[log] ```
-///   - [ ] parser implemented
+///   - [x] parser implemented
 ///   - [ ] generator implemented
 ///   - **Purpose**: Introduce logging at various points in the request-response cycle.
 ///   - **Use Case**: Generate code that logs important information about API requests and
@@ -146,10 +146,26 @@ use rest_macros::restify;
 ///       should be expanded on testing for ' " ' literals as well.
 fn todos(){}
 
+struct MyStruct<'de: 'a + 'b, 'a, 'b, 'c> {
+	// Example fields that might be present in such a struct:
+	data_de: &'de str,   // A reference that must live as long as 'de
+	data_a: &'a str,     // A reference that must live as long as 'a
+	data_b: &'b str,     // A reference that must live as long as 'b
+	data_c: &'c str,     // A reference that must live as long as 'c
+}
+
 restify!{
 	#[builder]
 	[pub DoesVecWork: {
 		PUT "/api/vec/{ids}" => {
+			#[remote="other_crate::SignUp"]
+			struct Remote<Request> {
+				#[rename="username"]
+				name: String,
+				#[rename="password"]
+				#[getter="other_crate::Signup::create_password"]
+				pass: String,
+			}
 			#[rename_all="RenameAll"]
 			#[builder]
 			#[log(

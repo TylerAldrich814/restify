@@ -22,7 +22,7 @@ mod commands;
 /// This method is used during the code generation stage
 /// (If the Attribute is meant for code generation)
 pub trait Attribute: Parse + Debug{
-	fn quote(&self) -> AttrKind;
+	fn expand(&self) -> AttrKind;
 }
 
 /// Detects if the next Token in the provided ParseStream is the beginning on an Attribute or not.

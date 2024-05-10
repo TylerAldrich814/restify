@@ -138,6 +138,7 @@ impl Parse for Enumeration {
 }
 impl Parse for Enum {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
+		let i = input.peek(Token![,])
 		let name: Ident = input.parse()?;
 		let mut enums: Vec<Enumeration> = Vec::new();
 		
